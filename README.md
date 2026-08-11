@@ -6,7 +6,7 @@ le backend qui est connecté avec le front fait avec nodejs, prisma, express, po
 
 ```bash
 cp .env.example .env
-# éditer .env : générer un vrai JWT_SECRET avec
+
 #   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 docker compose up -d        # Postgres local (identifiants déjà dans .env.example)

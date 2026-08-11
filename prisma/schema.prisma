@@ -1,10 +1,3 @@
-// Schéma Prisma — LAS Inspections API
-//
-// Miroir aussi fidèle que possible des types déjà établis côté frontend
-// (src/lib/mock-data.ts, inspection-checklist.ts, fiche-catalog.ts,
-// building-checklist.ts, user-directory.ts, task-status.ts) pour que la
-// migration du localStorage vers le backend soit directe.
-
 generator client {
   provider = "prisma-client-js"
 }

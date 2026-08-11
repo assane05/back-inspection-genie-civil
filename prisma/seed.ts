@@ -1,14 +1,3 @@
-/**
- * Seed des comptes de démonstration — miroir de DEFAULT_USERS dans
- * src/lib/user-directory.ts côté frontend (mêmes id/username/groupes),
- * pour que la connexion fonctionne de façon identique une fois le backend
- * branché (VITE_AUTH_API_URL défini côté frontend).
- *
- * Mot de passe unique pour tous les comptes de démo : DEMO_SEED_PASSWORD
- * (voir .env). À changer/désactiver avant toute mise en production réelle.
- *
- * Lancer avec : npm run seed
- */
 import { env } from "../src/env";
 import { prisma } from "../src/prisma";
 import { hashPassword } from "../src/lib/password";
@@ -60,8 +49,6 @@ async function main() {
   console.log(`${users.length} comptes de démonstration créés/mis à jour.`);
   console.log(`Mot de passe (tous comptes) : ${env.demoSeedPassword}`);
 
-  // Dictionnaires — seed uniquement s'ils n'existent pas encore (ne jamais écraser
-  // une personnalisation admin déjà enregistrée en relançant le seed).
   for (const key of DICTIONARY_KEYS) {
     const existing = await prisma.dictionaryEntry.findFirst({ where: { key } });
     if (existing) continue;
