@@ -1,0 +1,186 @@
+[
+  {
+    "id": "murs",
+    "code": "A",
+    "label": "Murs / Cloisons",
+    "items": [
+      {
+        "id": "murs.1",
+        "label": "Fissures visibles"
+      },
+      {
+        "id": "murs.2",
+        "label": "Enduit décollé ou cloqué"
+      },
+      {
+        "id": "murs.3",
+        "label": "Humidité / traces d'infiltration"
+      },
+      {
+        "id": "murs.4",
+        "label": "Cloisons désolidarisées ou déformées"
+      }
+    ]
+  },
+  {
+    "id": "structures",
+    "code": "B",
+    "label": "Structures",
+    "items": [
+      {
+        "id": "structures.1",
+        "label": "Fissures structurelles (poteaux, poutres)"
+      },
+      {
+        "id": "structures.2",
+        "label": "Corrosion des éléments métalliques apparents"
+      },
+      {
+        "id": "structures.3",
+        "label": "Affaissement / déformation"
+      },
+      {
+        "id": "structures.4",
+        "label": "Points d'appui ou fondations visibles dégradés"
+      }
+    ]
+  },
+  {
+    "id": "menuiserie",
+    "code": "C",
+    "label": "Menuiserie",
+    "items": [
+      {
+        "id": "menuiserie.1",
+        "label": "Portes : fonctionnement, fermeture, quincaillerie"
+      },
+      {
+        "id": "menuiserie.2",
+        "label": "Fenêtres : étanchéité, vitrage, fonctionnement"
+      },
+      {
+        "id": "menuiserie.3",
+        "label": "Serrures et ferme-portes"
+      },
+      {
+        "id": "menuiserie.4",
+        "label": "Déformation des huisseries"
+      }
+    ]
+  },
+  {
+    "id": "faux-plafond",
+    "code": "D",
+    "label": "Faux plafond / Étanchéité",
+    "items": [
+      {
+        "id": "faux-plafond.1",
+        "label": "Dalles de faux plafond manquantes ou tachées"
+      },
+      {
+        "id": "faux-plafond.2",
+        "label": "Infiltrations / traces d'humidité en plafond"
+      },
+      {
+        "id": "faux-plafond.3",
+        "label": "Ossature apparente ou affaissée"
+      },
+      {
+        "id": "faux-plafond.4",
+        "label": "Étanchéité des points singuliers (toiture-terrasse)"
+      }
+    ]
+  },
+  {
+    "id": "peinture",
+    "code": "E",
+    "label": "Peinture",
+    "items": [
+      {
+        "id": "peinture.1",
+        "label": "Écaillage / cloquage"
+      },
+      {
+        "id": "peinture.2",
+        "label": "Décoloration / ternissement"
+      },
+      {
+        "id": "peinture.3",
+        "label": "Salissures / graffitis"
+      },
+      {
+        "id": "peinture.4",
+        "label": "Reprises de peinture non homogènes"
+      }
+    ]
+  },
+  {
+    "id": "carrelage",
+    "code": "F",
+    "label": "Carrelage / Revêtement",
+    "items": [
+      {
+        "id": "carrelage.1",
+        "label": "Carreaux fissurés ou descellés"
+      },
+      {
+        "id": "carrelage.2",
+        "label": "Joints dégradés"
+      },
+      {
+        "id": "carrelage.3",
+        "label": "Revêtement de sol soulevé ou décollé"
+      },
+      {
+        "id": "carrelage.4",
+        "label": "Plinthes endommagées"
+      }
+    ]
+  },
+  {
+    "id": "toiture",
+    "code": "G",
+    "label": "Toiture métallique",
+    "items": [
+      {
+        "id": "toiture.1",
+        "label": "Corrosion / oxydation des tôles"
+      },
+      {
+        "id": "toiture.2",
+        "label": "Fixations desserrées ou manquantes"
+      },
+      {
+        "id": "toiture.3",
+        "label": "Déformation ou soulèvement au vent"
+      },
+      {
+        "id": "toiture.4",
+        "label": "Étanchéité des recouvrements"
+      }
+    ]
+  },
+  {
+    "id": "eaux-pluviales",
+    "code": "H",
+    "label": "Descente eaux pluviales",
+    "items": [
+      {
+        "id": "eaux-pluviales.1",
+        "label": "Gouttières obstruées"
+      },
+      {
+        "id": "eaux-pluviales.2",
+        "label": "Descentes désolidarisées ou fuyantes"
+      },
+      {
+        "id": "eaux-pluviales.3",
+        "label": "Corrosion des chéneaux"
+      },
+      {
+        "id": "eaux-pluviales.4",
+        "label": "Évacuations au sol obstruées"
+      }
+    ]
+  }
+]

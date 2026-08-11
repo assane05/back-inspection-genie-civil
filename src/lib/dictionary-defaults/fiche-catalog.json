@@ -1,0 +1,240 @@
+[
+  {
+    "id": "runway",
+    "code": "MAINT/EN/73/00",
+    "label": "Fiche d'inspection Runway",
+    "group": "Runway",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "balisage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "runway-resa",
+    "code": "TEMP-1",
+    "label": "Fiche inspection bande de pistes-RESA",
+    "group": "Runway",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "runway-balisage",
+    "code": "MAINT/EN/110/00",
+    "label": "Fiche d'inspection balisage diurne Runway",
+    "group": "Runway",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "taxiway",
+    "code": "MAINT/EN/74/00",
+    "label": "Fiche d'inspection Taxiway",
+    "group": "Taxiway",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "balisage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "taxiway-bande",
+    "code": "TEMP-2",
+    "label": "Fiche inspection bande de piste-TWY",
+    "group": "Taxiway",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "taxiway-balisage",
+    "code": "MAINT/EN/111/00",
+    "label": "Fiche d'inspection balisage diurne Taxiway",
+    "group": "Taxiway",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "apron",
+    "code": "MAINT/EN/75/00",
+    "label": "Fiche d'inspection Apron",
+    "group": "Apron et GSE Road",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "balisage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "apron-balisage",
+    "code": "MAINT/EN/112/00",
+    "label": "Fiche d'inspection balisage diurne Apron",
+    "group": "Apron et GSE Road",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "gse-road",
+    "code": "MAINT/EN/76/00",
+    "label": "Fiche d'inspection GSE Road",
+    "group": "Apron et GSE Road",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "gse-road-balisage",
+    "code": null,
+    "label": "Fiche d'inspection balisage GSE Road",
+    "group": "Apron et GSE Road",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "service-road",
+    "code": "MAINT/EN/77/00",
+    "label": "Fiche d'inspection Service Road",
+    "group": "Service Road",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "access-road",
+    "code": "MAINT/EN/78/00",
+    "label": "Fiche d'inspection Access Road",
+    "group": "Acces Road - Chemin de Ronde Ext - Parking Auto",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "parking",
+    "code": "MAINT/EN/79/00",
+    "label": "Fiche d'inspection Parking",
+    "group": "Acces Road - Chemin de Ronde Ext - Parking Auto",
+    "confirmed": true,
+    "categories": [
+      "surface",
+      "marquage",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "parking-balisage",
+    "code": null,
+    "label": "Fiche d'inspection balisage diurne parking",
+    "group": "Acces Road - Chemin de Ronde Ext - Parking Auto",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "fence",
+    "code": "MAINT/EN/80/00",
+    "label": "Fiche d'inspection Fence",
+    "group": "Fence et Chemin de Ronde Int",
+    "confirmed": true,
+    "categories": [
+      "surete",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "cr-interieur",
+    "code": null,
+    "label": "Fiche d'inspection Chemin de Ronde Interieur",
+    "group": "Fence et Chemin de Ronde Int",
+    "confirmed": true,
+    "categories": [
+      "surete",
+      "abords",
+      "drainage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "cr-interieur-balisage",
+    "code": null,
+    "label": "Fiche d'inspection balisage diurne CR Interieur",
+    "group": "Fence et Chemin de Ronde Int",
+    "confirmed": true,
+    "categories": [
+      "marquage",
+      "balisage"
+    ],
+    "segmentation": "linear"
+  },
+  {
+    "id": "drainage",
+    "code": "MAINT/EN/81/00",
+    "label": "Fiche d'inspection Drainage",
+    "group": "Ouvrage de Drainage",
+    "confirmed": true,
+    "categories": [
+      "drainage",
+      "abords",
+      "surface"
+    ],
+    "segmentation": "single"
+  }
+]

@@ -1,0 +1,230 @@
+[
+  {
+    "id": "surface",
+    "label": "Surface & revêtement",
+    "hint": "État du revêtement et propreté de la zone",
+    "segments": [
+      {
+        "id": "surface.chaussee",
+        "label": "Chaussée",
+        "points": [
+          {
+            "id": "surface.chaussee.1",
+            "label": "Fissures / faïençage"
+          },
+          {
+            "id": "surface.chaussee.2",
+            "label": "Nids-de-poule, épaufrures"
+          },
+          {
+            "id": "surface.chaussee.3",
+            "label": "Décollement d'enrobé (FOD potentiel)"
+          },
+          {
+            "id": "surface.chaussee.4",
+            "label": "Affaissement / déformation"
+          }
+        ]
+      },
+      {
+        "id": "surface.proprete",
+        "label": "Propreté / FOD",
+        "points": [
+          {
+            "id": "surface.proprete.1",
+            "label": "Présence de FOD"
+          },
+          {
+            "id": "surface.proprete.2",
+            "label": "Traces d'hydrocarbures"
+          },
+          {
+            "id": "surface.proprete.3",
+            "label": "Végétation sur la surface"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "marquage",
+    "label": "Marquage & signalisation",
+    "hint": "Peintures, panneaux et repères",
+    "segments": [
+      {
+        "id": "marquage.peinture",
+        "label": "Marquage au sol",
+        "points": [
+          {
+            "id": "marquage.peinture.1",
+            "label": "Lisibilité du marquage axial"
+          },
+          {
+            "id": "marquage.peinture.2",
+            "label": "Lisibilité des marquages latéraux"
+          },
+          {
+            "id": "marquage.peinture.3",
+            "label": "Marquage de seuil / points d'attente"
+          }
+        ]
+      },
+      {
+        "id": "marquage.panneaux",
+        "label": "Panneaux",
+        "points": [
+          {
+            "id": "marquage.panneaux.1",
+            "label": "Panneaux propres et lisibles"
+          },
+          {
+            "id": "marquage.panneaux.2",
+            "label": "Fixation et verticalité"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "balisage",
+    "label": "Balisage lumineux",
+    "hint": "Feux, alimentation et alignement",
+    "segments": [
+      {
+        "id": "balisage.feux",
+        "label": "Feux",
+        "points": [
+          {
+            "id": "balisage.feux.1",
+            "label": "Feux hors service"
+          },
+          {
+            "id": "balisage.feux.2",
+            "label": "Vitrage cassé ou encrassé"
+          },
+          {
+            "id": "balisage.feux.3",
+            "label": "Alignement / hauteur"
+          }
+        ]
+      },
+      {
+        "id": "balisage.alim",
+        "label": "Alimentation",
+        "points": [
+          {
+            "id": "balisage.alim.1",
+            "label": "Câblage apparent"
+          },
+          {
+            "id": "balisage.alim.2",
+            "label": "Regards et boîtes de dérivation"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abords",
+    "label": "Abords & accotements",
+    "hint": "Bandes, talus et végétation",
+    "segments": [
+      {
+        "id": "abords.bande",
+        "label": "Bande / accotement",
+        "points": [
+          {
+            "id": "abords.bande.1",
+            "label": "Dénivelé en bord de chaussée"
+          },
+          {
+            "id": "abords.bande.2",
+            "label": "Érosion / ravinement"
+          },
+          {
+            "id": "abords.bande.3",
+            "label": "Hauteur de la végétation"
+          }
+        ]
+      },
+      {
+        "id": "abords.obstacles",
+        "label": "Obstacles",
+        "points": [
+          {
+            "id": "abords.obstacles.1",
+            "label": "Objets ou matériels non autorisés"
+          },
+          {
+            "id": "abords.obstacles.2",
+            "label": "Nids d'oiseaux / faune"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drainage",
+    "label": "Drainage",
+    "hint": "Écoulement des eaux",
+    "segments": [
+      {
+        "id": "drainage.ouvrages",
+        "label": "Ouvrages",
+        "points": [
+          {
+            "id": "drainage.ouvrages.1",
+            "label": "Grilles et avaloirs obstrués"
+          },
+          {
+            "id": "drainage.ouvrages.2",
+            "label": "Caniveaux dégradés"
+          },
+          {
+            "id": "drainage.ouvrages.3",
+            "label": "Stagnation d'eau"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "surete",
+    "label": "Sûreté & clôture",
+    "hint": "Périmètre et accès",
+    "segments": [
+      {
+        "id": "surete.cloture",
+        "label": "Clôture / Chemin de ronde",
+        "points": [
+          {
+            "id": "surete.cloture.1",
+            "label": "Grillage percé ou déformé"
+          },
+          {
+            "id": "surete.cloture.2",
+            "label": "Fils barbelés manquants"
+          },
+          {
+            "id": "surete.cloture.3",
+            "label": "Traces d'intrusion / creusement"
+          }
+        ]
+      },
+      {
+        "id": "surete.acces",
+        "label": "Accès",
+        "points": [
+          {
+            "id": "surete.acces.1",
+            "label": "Portails et serrures"
+          },
+          {
+            "id": "surete.acces.2",
+            "label": "Éclairage périmétrique"
+          }
+        ]
+      }
+    ]
+  }
+]
