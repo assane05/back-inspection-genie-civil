@@ -22,11 +22,6 @@ const cookieOptions = {
   path: "/",
 };
 
-/**
- * POST /auth/login — { identifier, password } -> { user, expiresIn }
- * Identifiant = username ou email. Pose un cookie de session httpOnly.
- * Contrat exact attendu par src/lib/auth-api.ts#authenticate côté frontend.
- */
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
@@ -39,7 +34,8 @@ authRouter.post("/login", async (req, res) => {
 
   // Réponse volontairement identique (identifiant inconnu / mdp faux / compte désactivé)
   // pour ne pas révéler quels comptes existent.
-  if (!user || !user.isActive) return res.status(401).json({ error: "invalid_credentials" });
+  if (!user || !user.isActive)
+    return res.status(401).json({ error: "invalid_credentials" });
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: "invalid_credentials" });
@@ -49,13 +45,14 @@ authRouter.post("/login", async (req, res) => {
   res.json({ user: toSessionUser(user), expiresIn: env.sessionTtlSeconds });
 });
 
-/** POST /auth/logout — révoque le cookie de session côté serveur. */
 authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(env.sessionCookieName, { ...cookieOptions, maxAge: undefined });
+  res.clearCookie(env.sessionCookieName, {
+    ...cookieOptions,
+    maxAge: undefined,
+  });
   res.status(204).end();
 });
 
-/** GET /auth/me — vérité serveur sur la session en cours (pas encore appelé par le frontend actuel). */
 authRouter.get("/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
 });

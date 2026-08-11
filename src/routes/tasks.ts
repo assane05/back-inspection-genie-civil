@@ -8,17 +8,23 @@ export const tasksRouter = Router();
 
 tasksRouter.use(requireAuth);
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ");
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format AAAA-MM-JJ");
 
 /**
- * GET /tasks — liste avec filtres, cohérente avec TaskFilters côté frontend
- * (src/lib/tasks.ts). Un superviseur ne voit jamais que les tâches de ses
+  liste avec filtres, Un superviseur ne voit jamais que les tâches de ses
  * propres groupes, même s'il force un autre groupe en paramètre — l'admin
  * voit tout et peut filtrer librement.
  */
 tasksRouter.get("/", async (req, res) => {
-  const { form, status, year, bimester, week, q } = req.query as Record<string, string | undefined>;
-  const groupParams = ([] as string[]).concat((req.query.group as string | string[] | undefined) ?? []);
+  const { form, status, year, bimester, week, q } = req.query as Record<
+    string,
+    string | undefined
+  >;
+  const groupParams = ([] as string[]).concat(
+    (req.query.group as string | string[] | undefined) ?? [],
+  );
 
   const where: Record<string, unknown> = {};
   if (form && form !== "all") where.form = form;
@@ -40,14 +46,20 @@ tasksRouter.get("/", async (req, res) => {
     where.group = { in: groupParams };
   }
 
-  const tasks = await prisma.task.findMany({ where, orderBy: { dueDate: "asc" } });
+  const tasks = await prisma.task.findMany({
+    where,
+    orderBy: { dueDate: "asc" },
+  });
   res.json({ tasks });
 });
 
 tasksRouter.get("/:id", async (req, res) => {
   const task = await prisma.task.findUnique({ where: { id: req.params.id } });
   if (!task) return res.status(404).json({ error: "not_found" });
-  if (req.user!.role === "supervisor" && !req.user!.groups.includes(task.group)) {
+  if (
+    req.user!.role === "supervisor" &&
+    !req.user!.groups.includes(task.group)
+  ) {
     return res.status(403).json({ error: "forbidden" });
   }
   res.json({ task });
@@ -63,13 +75,15 @@ const createTasksSchema = z.object({
 });
 
 /**
- * POST /tasks — assignation individuelle (1 zone × 1 groupe) ou en lot
+ * assignation individuelle (1 zone × 1 groupe) ou en lot
  * (plusieurs zones et/ou groupes) : une tâche par combinaison zone × groupe,
- * miroir exact de createTasks() dans src/lib/admin-tasks.ts côté frontend.
  */
 tasksRouter.post("/", requireRole("admin"), async (req, res) => {
   const parsed = createTasksSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success)
+    return res
+      .status(400)
+      .json({ error: "invalid_body", details: parsed.error.flatten() });
   const { form, zones, groups, notes, dueISO, kind } = parsed.data;
 
   const { year, bimester, week } = deriveDateParts(dueISO);
@@ -90,7 +104,9 @@ tasksRouter.post("/", requireRole("admin"), async (req, res) => {
     })),
   );
 
-  const created = await prisma.$transaction(rows.map((data) => prisma.task.create({ data })));
+  const created = await prisma.$transaction(
+    rows.map((data) => prisma.task.create({ data })),
+  );
   res.status(201).json({ tasks: created });
 });
 
@@ -100,14 +116,19 @@ const updateTaskSchema = z.object({
   group: z.string().min(1).optional(),
   notes: z.string().optional(),
   dueISO: isoDate.optional(),
-  status: z.enum(["not_submitted", "in_progress", "pending", "verified"]).optional(),
+  status: z
+    .enum(["not_submitted", "in_progress", "pending", "verified"])
+    .optional(),
   kind: z.enum(["horizontal", "batiment"]).optional(),
 });
 
 /** PATCH /tasks/:id — édition admin (réassignation, correction, changement de statut). */
 tasksRouter.patch("/:id", requireRole("admin"), async (req, res) => {
   const parsed = updateTaskSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success)
+    return res
+      .status(400)
+      .json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const { dueISO, ...rest } = parsed.data;
   const dateParts = dueISO ? deriveDateParts(dueISO) : {};
@@ -117,7 +138,9 @@ tasksRouter.patch("/:id", requireRole("admin"), async (req, res) => {
       where: { id: req.params.id },
       data: {
         ...rest,
-        ...(dueISO ? { dueDate: new Date(dueISO + "T00:00:00"), ...dateParts } : {}),
+        ...(dueISO
+          ? { dueDate: new Date(dueISO + "T00:00:00"), ...dateParts }
+          : {}),
       },
     });
     res.json({ task });

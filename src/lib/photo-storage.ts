@@ -3,17 +3,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "../env";
 
-/**
- * Stockage des photos — pilote "local" pour l'instant (sprint "stockage
- * objets fiable" : la migration S3/R2 se fera en changeant uniquement cette
- * fonction, jamais l'URL renvoyée au client ni les appelants).
- *
- * Le frontend envoie déjà les photos compressées en data URL (voir
- * src/lib/image.ts côté frontend) dans le JSON de soumission — on les décode
- * et on les écrit sur disque ici, ce qui évite de devoir réécrire le
- * frontend en upload multipart pour cette phase.
- */
-
 const MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -27,12 +16,13 @@ export type StoredPhoto = {
   sizeBytes: number;
 };
 
-/** true si la chaîne ressemble à une data URL image (data:image/...;base64,...). */
 export function isImageDataUrl(value: string): boolean {
   return /^data:image\/(jpeg|png|webp);base64,/.test(value);
 }
 
-export async function savePhotoFromDataUrl(dataUrl: string): Promise<StoredPhoto> {
+export async function savePhotoFromDataUrl(
+  dataUrl: string,
+): Promise<StoredPhoto> {
   const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(dataUrl);
   if (!match) throw new Error("invalid_photo_data_url");
   const [, mimeType, base64] = match;

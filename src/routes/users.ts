@@ -9,7 +9,6 @@ export const usersRouter = Router();
 
 usersRouter.use(requireAuth, requireRole("admin"));
 
-/** Comptes du jeu de démonstration — protégés contre la suppression (désactivables seulement). */
 function isSeedAccount(id: string) {
   return id === "u-admin-1" || /^u-supervisor-\d+$/.test(id);
 }
@@ -37,19 +36,27 @@ function initialsFor(name: string): string {
   return initials || "??";
 }
 
-/** POST /users — crée un compte avec un vrai mot de passe (jamais stocké en clair). */
+/** crée un compte avec un vrai mot de passe. */
 usersRouter.post("/", async (req, res) => {
   const parsed = createUserSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success)
+    return res
+      .status(400)
+      .json({ error: "invalid_body", details: parsed.error.flatten() });
   const { password, ...rest } = parsed.data;
 
   const conflict = await prisma.user.findFirst({
     where: { OR: [{ username: rest.username }, { email: rest.email }] },
   });
-  if (conflict) return res.status(409).json({ error: "username_or_email_taken" });
+  if (conflict)
+    return res.status(409).json({ error: "username_or_email_taken" });
 
   const user = await prisma.user.create({
-    data: { ...rest, passwordHash: await hashPassword(password), initials: initialsFor(rest.name) },
+    data: {
+      ...rest,
+      passwordHash: await hashPassword(password),
+      initials: initialsFor(rest.name),
+    },
   });
   res.status(201).json({ user: toSessionUser(user) });
 });
@@ -61,14 +68,16 @@ const updateUserSchema = z.object({
   role: z.enum(["admin", "supervisor"]).optional(),
   groups: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),
-  /** Optionnel : ne change le mot de passe que si fourni. */
   password: z.string().min(8).optional(),
 });
 
-/** PATCH /users/:id — modifie le profil, le rôle, les groupes, ou désactive/réactive. */
+/** modifie le profil, le rôle, les groupes, ou désactive/réactive. */
 usersRouter.patch("/:id", async (req, res) => {
   const parsed = updateUserSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  if (!parsed.success)
+    return res
+      .status(400)
+      .json({ error: "invalid_body", details: parsed.error.flatten() });
   const { password, ...rest } = parsed.data;
 
   if (rest.isActive === false && req.params.id === req.user!.id) {
@@ -78,7 +87,10 @@ usersRouter.patch("/:id", async (req, res) => {
   try {
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { ...rest, ...(password ? { passwordHash: await hashPassword(password) } : {}) },
+      data: {
+        ...rest,
+        ...(password ? { passwordHash: await hashPassword(password) } : {}),
+      },
     });
     res.json({ user: toSessionUser(user) });
   } catch {
@@ -86,7 +98,7 @@ usersRouter.patch("/:id", async (req, res) => {
   }
 });
 
-/** DELETE /users/:id — les comptes de démonstration sont protégés (désactiver plutôt que supprimer). */
+/** les comptes de démonstration sont protégés (désactiver plutôt que supprimer). */
 usersRouter.delete("/:id", async (req, res) => {
   if (isSeedAccount(req.params.id)) {
     return res.status(400).json({ error: "seed_account_protected" });

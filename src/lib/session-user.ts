@@ -1,9 +1,4 @@
 import type { User } from "@prisma/client";
-
-/**
- * Forme exacte attendue par le frontend (src/lib/auth-api.ts#SessionUser).
- * Ne jamais inclure passwordHash ni les colonnes internes.
- */
 export type SessionUser = {
   id: string;
   name: string;

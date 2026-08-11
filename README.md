@@ -12,8 +12,8 @@ cp .env.example .env
 docker compose up -d        # Postgres local (identifiants déjà dans .env.example)
 
 npm install
-npm run prisma:migrate      # crée les tables (première fois : nomme la migration, ex. "init")
-npm run seed                # crée les comptes de démonstration (voir mot de passe affiché)
+npm run prisma:migrate      # las comme nom
+npm run seed                # ChangeMe123!
 npm run dev                 # API sur http://localhost:4000
 ```
 

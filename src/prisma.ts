@@ -1,8 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-// Singleton — évite de multiplier les connexions en dev avec le rechargement à chaud.
 declare global {
-  // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined;
 }
 

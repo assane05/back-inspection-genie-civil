@@ -4,9 +4,13 @@ import { env } from "../env";
 export type SessionTokenPayload = { sub: string };
 
 export function signSessionToken(userId: string): string {
-  return jwt.sign({ sub: userId } satisfies SessionTokenPayload, env.jwtSecret, {
-    expiresIn: env.sessionTtlSeconds,
-  });
+  return jwt.sign(
+    { sub: userId } satisfies SessionTokenPayload,
+    env.jwtSecret,
+    {
+      expiresIn: env.sessionTtlSeconds,
+    },
+  );
 }
 
 export function verifySessionToken(token: string): SessionTokenPayload | null {
