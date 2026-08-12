@@ -105,7 +105,8 @@ model Submission {
   submittedBy   User     @relation(fields: [submittedById], references: [id])
   submittedById String
   submittedAt   DateTime @default(now())
-
+  idempotencyKey String? @unique
+  
   photos Photo[]
 
   createdAt DateTime @default(now())
