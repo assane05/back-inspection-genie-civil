@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../env";
-import { verifySessionToken } from "../lib/jwt";
+import { getValidSession } from "../lib/session";
 import { prisma } from "../prisma";
 import { toSessionUser, type SessionUser } from "../lib/session-user";
 
@@ -19,9 +19,9 @@ export async function attachUser(
 ) {
   const token = req.cookies?.[env.sessionCookieName];
   if (!token) return next();
-  const payload = verifySessionToken(token);
-  if (!payload) return next();
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const session = await getValidSession(token);
+  if (!session) return next();
+  const user = await prisma.user.findUnique({ where: { id: session.userId } });
   if (user && user.isActive) req.user = toSessionUser(user);
   next();
 }

@@ -24,7 +24,6 @@ enum TaskKind {
   batiment
 }
 
-/// Compte utilisateur — voir src/lib/user-directory.ts côté frontend.
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -32,7 +31,6 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(supervisor)
-  /// Groupes de supervision (ex. "Supervisor 1") — un utilisateur peut en avoir plusieurs.
   groups       String[]
   initials     String
   isActive     Boolean  @default(true)
@@ -41,11 +39,24 @@ model User {
 
   submissions Submission[]
   tasksCreated Task[]      @relation("TaskCreatedBy")
+  sessions     Session[]
 
   @@map("users")
 }
 
-/// Tâche d'inspection assignée — voir src/lib/mock-data.ts#TaskRow côté frontend.
+
+model Session {
+  id        String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
 model Task {
   id        String     @id @default(cuid())
   form      String
@@ -53,8 +64,7 @@ model Task {
   zone      String
   notes     String      @default("")
   group     String
-  /// Dénormalisés pour retrouver exactement les filtres front (année/bimestre/semaine)
-  /// sans recalcul ambigu côté client.
+
   year      Int
   bimester  Int
   week      Int
@@ -74,9 +84,6 @@ model Task {
   @@map("tasks")
 }
 
-/// Fiche soumise — en-tête + liste de constats en JSON (structure proche de
-/// PointState côté frontend). Les photos sont stockées séparément (table Photo)
-/// pour garantir des URLs stables (sprint "stockage objets fiable").
 model Submission {
   id     String   @id @default(cuid())
   task   Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -88,18 +95,13 @@ model Submission {
   notes   String @default("")
   group   String
 
-  /// Uniquement pour les fiches bâtiment.
   sector     String?
   compliance String?
 
   comment String @default("")
 
-  /// Liste des constats en défaut : { segment?, category, point, severity,
-  /// qualitatif, localisation, actionCorrective, photoIds: string[] }[]
   defects Json
 
-  /// Numéro(s) de version des dictionnaires en vigueur à la soumission —
-  /// traçabilité "une fiche déjà soumise n'est pas altérée rétroactivement".
   modelVersion Json
 
   submittedBy   User     @relation(fields: [submittedById], references: [id])
@@ -116,17 +118,12 @@ model Submission {
   @@map("submissions")
 }
 
-/// Photo attachée à un constat — fichier stocké (disque pour l'instant,
-/// S3/R2 prévu) + URL stable et servie publiquement.
 model Photo {
   id            String     @id @default(cuid())
   submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionId  String
-  /// Identifie à quel point/item de la fiche cette photo appartient (id de constat).
   constatKey    String
-  /// Chemin relatif sur le disque (ou clé objet une fois migré vers S3/R2).
   storageKey    String
-  /// URL publique stable — jamais de localhost codé en dur côté client.
   url           String
   mimeType      String
   sizeBytes     Int
@@ -136,9 +133,6 @@ model Photo {
   @@map("photos")
 }
 
-/// Dictionnaire versionné (familles/dégradations, catalogue de fiches, checklist
-/// bâtiment) — même principe que src/lib/dictionary-store.ts côté frontend :
-/// une ligne par clé, données en JSON, version incrémentée à chaque écriture.
 
 model DictionaryEntry {
   id        String   @id @default(cuid())

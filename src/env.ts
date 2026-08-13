@@ -16,7 +16,6 @@ export const env = {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),
-  jwtSecret: required("JWT_SECRET"),
   sessionTtlSeconds: Number(process.env.SESSION_TTL_SECONDS ?? 8 * 60 * 60),
   sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "las_session",
   photoStorageDriver: (process.env.PHOTO_STORAGE_DRIVER ?? "local") as "local",
@@ -27,8 +26,8 @@ export const env = {
   isProduction: process.env.NODE_ENV === "production",
 };
 
-if (env.jwtSecret === "change-me-generate-a-real-secret" && env.isProduction) {
+if (env.isProduction && env.demoSeedPassword === "ChangeMe123!") {
   throw new Error(
-    "JWT_SECRET par défaut détecté en production — générez un vrai secret.",
+    "défaut détecté en production — changez-le ou ne relancez pas le seed de démonstration.",
   );
 }
