@@ -10,8 +10,6 @@ const SUPERVISOR_GROUPS = [
   "Supervisor 5",
 ];
 
-// Fiches horizontales explicitement nommées dans le schéma de référence.
-// Liste partielle (starter set) — à compléter jusqu'à ~26 avec les superviseurs.
 const HORIZONTAL_FORM_TYPES: { code: string; name: string }[] = [
   { code: "apron", name: "Fiche d'inspection Apron" },
   { code: "runway", name: "Fiche d'inspection Runway" },
@@ -35,7 +33,6 @@ const HORIZONTAL_FORM_TYPES: { code: string; name: string }[] = [
   { code: "bande_piste_resa", name: "Fiche d'inspection Bande de piste RESA" },
 ];
 
-// Familles génériques partagées par toutes les fiches horizontales (D14/D20).
 const HORIZONTAL_FAMILIES = [
   "Déformations",
   "Fissures",
@@ -44,7 +41,6 @@ const HORIZONTAL_FAMILIES = [
   "Autres constats",
 ];
 
-// Catégories A→H du module bâtiment (V1, sans les items — à valider).
 const BUILDING_CATEGORIES: { code: string; label: string }[] = [
   { code: "A", label: "A - Murs / Cloisons" },
   { code: "B", label: "B - Structures" },
@@ -57,7 +53,6 @@ const BUILDING_CATEGORIES: { code: string; label: string }[] = [
 ];
 
 async function main() {
-  // 1. Groupes
   for (const name of SUPERVISOR_GROUPS) {
     await prisma.group.upsert({
       where: { name },
@@ -67,7 +62,6 @@ async function main() {
   }
   console.log(`${SUPERVISOR_GROUPS.length} groupes chargés.`);
 
-  // 2. Fiches horizontales (+ leurs familles génériques)
   for (const ft of HORIZONTAL_FORM_TYPES) {
     const formType = await prisma.formType.upsert({
       where: { code_version: { code: ft.code, version: 1 } },
@@ -91,11 +85,8 @@ async function main() {
       }
     }
   }
-  console.log(
-    `${HORIZONTAL_FORM_TYPES.length} fiches horizontales chargées (avec familles génériques).`,
-  );
+  console.log(`${HORIZONTAL_FORM_TYPES.length} fiches horizontales chargées.`);
 
-  // 3. Fiche bâtiment (+ catégories A→H)
   const batiment = await prisma.formType.upsert({
     where: { code_version: { code: "batiment", version: 1 } },
     update: { name: "Fiche d'Inspection Bâtiment" },

@@ -16,8 +16,4 @@ npm run seed
 npm run dev
 ```
 
-## Sécurité — à ne pas oublier avant toute mise en production
-
-- Générer un vrai `JWT_SECRET`
-  si `NODE_ENV=production` et que la valeur par défaut est encore présente.
 - Changer/désactiver `DEMO_SEED_PASSWORD`
