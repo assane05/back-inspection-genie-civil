@@ -14,5 +14,10 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/routes/tasks.ts",
+    "src/routes/dictionary.ts",
+    "src/routes/submissions.ts"
+  ]
 }

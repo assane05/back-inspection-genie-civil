@@ -4,7 +4,11 @@ import { getValidSession } from "../lib/session";
 import { prisma } from "../prisma";
 import { toSessionUser, type SessionUser } from "../lib/session-user";
 import { loadUserGroups } from "../lib/user-groups";
-import { ApiError } from "../lib/api-error";
+import {
+  assertGroupAccess as assertGroupAccessPure,
+  requireAuth as requireAuthPure,
+  requireRole as requireRolePure,
+} from "../lib/access-control";
 
 declare global {
   namespace Express {
@@ -32,8 +36,7 @@ export async function attachUser(
 }
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
-  if (!req.user)
-    throw new ApiError(401, "not_authenticated", "Authentification requise.");
+  requireAuthPure(req.user);
   next();
 }
 
@@ -41,25 +44,9 @@ export function requireRole(
   ...roles: Array<"superviseur" | "administrateur" | "approbateur">
 ) {
   return (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.user)
-      throw new ApiError(401, "not_authenticated", "Authentification requise.");
-    if (!roles.includes(req.user.role))
-      throw new ApiError(
-        403,
-        "forbidden",
-        "Rôle insuffisant pour cette action.",
-      );
+    requireRolePure(req.user, ...roles);
     next();
   };
 }
 
-export function assertGroupAccess(user: SessionUser, groupId: string) {
-  if (user.role === "administrateur" || user.role === "approbateur") return;
-  if (!user.groupIds.includes(groupId)) {
-    throw new ApiError(
-      403,
-      "forbidden",
-      "Ce groupe n'est pas accessible à cet utilisateur.",
-    );
-  }
-}
+export const assertGroupAccess = assertGroupAccessPure;
