@@ -1,24 +1,28 @@
 import type { User } from "@prisma/client";
+
 export type SessionUser = {
   id: string;
-  name: string;
   username: string;
-  email: string;
-  role: "admin" | "supervisor";
-  groups: string[];
-  initials: string;
+  displayName: string;
+  email: string | null;
+  role: "superviseur" | "administrateur" | "approbateur";
+  groupIds: string[];
+  groupNames: string[];
   isActive: boolean;
 };
 
-export function toSessionUser(user: User): SessionUser {
+export function toSessionUser(
+  user: User,
+  groups: { id: string; name: string }[],
+): SessionUser {
   return {
     id: user.id,
-    name: user.name,
     username: user.username,
+    displayName: user.displayName,
     email: user.email,
     role: user.role,
-    groups: user.groups,
-    initials: user.initials,
+    groupIds: groups.map((g) => g.id),
+    groupNames: groups.map((g) => g.name),
     isActive: user.isActive,
   };
 }

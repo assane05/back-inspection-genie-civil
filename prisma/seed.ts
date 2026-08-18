@@ -1,10 +1,6 @@
-import { env } from "../src/env";
-import { prisma } from "../src/prisma";
-import { hashPassword } from "../src/lib/password";
-import {
-  DICTIONARY_DEFAULTS,
-  DICTIONARY_KEYS,
-} from "../src/lib/dictionary-defaults";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 const SUPERVISOR_GROUPS = [
   "Supervisor 1",
@@ -14,58 +10,134 @@ const SUPERVISOR_GROUPS = [
   "Supervisor 5",
 ];
 
+// Fiches horizontales explicitement nommées dans le schéma de référence.
+// Liste partielle (starter set) — à compléter jusqu'à ~26 avec les superviseurs.
+const HORIZONTAL_FORM_TYPES: { code: string; name: string }[] = [
+  { code: "apron", name: "Fiche d'inspection Apron" },
+  { code: "runway", name: "Fiche d'inspection Runway" },
+  { code: "taxiway", name: "Fiche d'inspection Taxiway" },
+  { code: "parking", name: "Fiche d'inspection Parking" },
+  {
+    code: "service_gse_access_road",
+    name: "Fiche d'inspection Service/GSE/Access Road",
+  },
+  {
+    code: "chemin_ronde_interieur",
+    name: "Fiche d'inspection Chemin de Ronde Intérieur",
+  },
+  {
+    code: "chemin_ronde_exterieur",
+    name: "Fiche d'inspection Chemin de Ronde Extérieur",
+  },
+  { code: "fence", name: "Fiche d'inspection Fence" },
+  { code: "ouvrage", name: "Fiche d'inspection Ouvrage" },
+  { code: "bande_piste_twy", name: "Fiche d'inspection Bande de piste TWY" },
+  { code: "bande_piste_resa", name: "Fiche d'inspection Bande de piste RESA" },
+];
+
+// Familles génériques partagées par toutes les fiches horizontales (D14/D20).
+const HORIZONTAL_FAMILIES = [
+  "Déformations",
+  "Fissures",
+  "Arrachements",
+  "Autres dégradations",
+  "Autres constats",
+];
+
+// Catégories A→H du module bâtiment (V1, sans les items — à valider).
+const BUILDING_CATEGORIES: { code: string; label: string }[] = [
+  { code: "A", label: "A - Murs / Cloisons" },
+  { code: "B", label: "B - Structures" },
+  { code: "C", label: "C - Menuiserie" },
+  { code: "D", label: "D - Faux plafond / Étanchéité" },
+  { code: "E", label: "E - Peinture" },
+  { code: "F", label: "F - Carrelage" },
+  { code: "G", label: "G - Toiture métallique" },
+  { code: "H", label: "H - Descente EP" },
+];
+
 async function main() {
-  const passwordHash = await hashPassword(env.demoSeedPassword);
-
-  const users = [
-    {
-      id: "u-admin-1",
-      name: "Approver 1",
-      username: "approver1",
-      email: "approver1@las.aero",
-      role: "admin" as const,
-      groups: [...SUPERVISOR_GROUPS],
-      initials: "A1",
-    },
-    ...SUPERVISOR_GROUPS.map((group, i) => ({
-      id: `u-supervisor-${i + 1}`,
-      name: `Supervisor ${i + 1}`,
-      username: `supervisor${i + 1}`,
-      email: `supervisor${i + 1}@las.aero`,
-      role: "supervisor" as const,
-      groups: [group],
-      initials: `S${i + 1}`,
-    })),
-  ];
-
-  for (const u of users) {
-    await prisma.user.upsert({
-      where: { id: u.id },
-      update: { ...u, passwordHash },
-      create: { ...u, passwordHash, isActive: true },
+  // 1. Groupes
+  for (const name of SUPERVISOR_GROUPS) {
+    await prisma.group.upsert({
+      where: { name },
+      update: {},
+      create: { name },
     });
   }
+  console.log(`${SUPERVISOR_GROUPS.length} groupes chargés.`);
 
-  console.log(`${users.length} comptes de démonstration créés/mis à jour.`);
-  console.log(`Mot de passe (tous comptes) : ${env.demoSeedPassword}`);
-
-  for (const key of DICTIONARY_KEYS) {
-    const existing = await prisma.dictionaryEntry.findFirst({ where: { key } });
-    if (existing) continue;
-    await prisma.dictionaryEntry.create({
-      data: {
-        key,
-        data: DICTIONARY_DEFAULTS[key],
+  // 2. Fiches horizontales (+ leurs familles génériques)
+  for (const ft of HORIZONTAL_FORM_TYPES) {
+    const formType = await prisma.formType.upsert({
+      where: { code_version: { code: ft.code, version: 1 } },
+      update: { name: ft.name },
+      create: {
+        code: ft.code,
+        name: ft.name,
+        module: "horizontal",
         version: 1,
       },
     });
+
+    for (const [i, label] of HORIZONTAL_FAMILIES.entries()) {
+      const existing = await prisma.formSection.findFirst({
+        where: { formTypeId: formType.id, label },
+      });
+      if (!existing) {
+        await prisma.formSection.create({
+          data: { formTypeId: formType.id, label, sortOrder: i },
+        });
+      }
+    }
   }
-  console.log(`Dictionnaires initialisés : ${DICTIONARY_KEYS.join(", ")}.`);
+  console.log(
+    `${HORIZONTAL_FORM_TYPES.length} fiches horizontales chargées (avec familles génériques).`,
+  );
+
+  // 3. Fiche bâtiment (+ catégories A→H)
+  const batiment = await prisma.formType.upsert({
+    where: { code_version: { code: "batiment", version: 1 } },
+    update: { name: "Fiche d'Inspection Bâtiment" },
+    create: {
+      code: "batiment",
+      name: "Fiche d'Inspection Bâtiment",
+      module: "vertical",
+      version: 1,
+    },
+  });
+
+  for (const [i, cat] of BUILDING_CATEGORIES.entries()) {
+    const existing = await prisma.formSection.findFirst({
+      where: { formTypeId: batiment.id, code: cat.code },
+    });
+    if (!existing) {
+      await prisma.formSection.create({
+        data: {
+          formTypeId: batiment.id,
+          code: cat.code,
+          label: cat.label,
+          sortOrder: i,
+        },
+      });
+    }
+  }
+  console.log(
+    `Fiche Bâtiment chargée avec ${BUILDING_CATEGORIES.length} catégories (A→H).`,
+  );
+
+  console.log(
+    "\n Rappel [D2] : ce seed ne couvre que le socle explicitement nommé dans le schéma de référence. " +
+      "Le catalogue complet des ~26 fiches, le dictionnaire des items (types de dégradation) et les segments " +
+      "spatiaux par fiche doivent être validés avec les superviseurs avant tout chargement en environnement partagé.",
+  );
 }
 
 main()
-  .catch((err) => {
-    console.error(err);
+  .catch((e) => {
+    console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

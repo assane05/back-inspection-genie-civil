@@ -6,6 +6,7 @@ import { verifyPassword } from "../lib/password";
 import { createSession, revokeSession } from "../lib/session";
 import { toSessionUser } from "../lib/session-user";
 import { requireAuth } from "../middleware/auth";
+import { loadUserGroups } from "../lib/user-groups";
 
 export const authRouter = Router();
 
@@ -42,7 +43,11 @@ authRouter.post("/login", async (req, res) => {
     ...cookieOptions,
     maxAge: expiresAt.getTime() - Date.now(),
   });
-  res.json({ user: toSessionUser(user), expiresIn: env.sessionTtlSeconds });
+  const groups = await loadUserGroups(user.id);
+  res.json({
+    user: toSessionUser(user, groups),
+    expiresIn: env.sessionTtlSeconds,
+  });
 });
 
 authRouter.post("/logout", async (req, res) => {

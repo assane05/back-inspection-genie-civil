@@ -3,6 +3,8 @@ import { env } from "../env";
 import { getValidSession } from "../lib/session";
 import { prisma } from "../prisma";
 import { toSessionUser, type SessionUser } from "../lib/session-user";
+import { loadUserGroups } from "../lib/user-groups";
+import { ApiError } from "../lib/api-error";
 
 declare global {
   namespace Express {
@@ -22,20 +24,42 @@ export async function attachUser(
   const session = await getValidSession(token);
   if (!session) return next();
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
-  if (user && user.isActive) req.user = toSessionUser(user);
+  if (user && user.isActive) {
+    const groups = await loadUserGroups(user.id);
+    req.user = toSessionUser(user, groups);
+  }
   next();
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (!req.user) return res.status(401).json({ error: "not_authenticated" });
+export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user)
+    throw new ApiError(401, "not_authenticated", "Authentification requise.");
   next();
 }
 
-export function requireRole(role: "admin" | "supervisor") {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) return res.status(401).json({ error: "not_authenticated" });
-    if (req.user.role !== role)
-      return res.status(403).json({ error: "forbidden" });
+export function requireRole(
+  ...roles: Array<"superviseur" | "administrateur" | "approbateur">
+) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user)
+      throw new ApiError(401, "not_authenticated", "Authentification requise.");
+    if (!roles.includes(req.user.role))
+      throw new ApiError(
+        403,
+        "forbidden",
+        "Rôle insuffisant pour cette action.",
+      );
     next();
   };
+}
+
+export function assertGroupAccess(user: SessionUser, groupId: string) {
+  if (user.role === "administrateur" || user.role === "approbateur") return;
+  if (!user.groupIds.includes(groupId)) {
+    throw new ApiError(
+      403,
+      "forbidden",
+      "Ce groupe n'est pas accessible à cet utilisateur.",
+    );
+  }
 }

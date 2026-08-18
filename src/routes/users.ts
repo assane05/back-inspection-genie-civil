@@ -1,112 +1,164 @@
 import { Router } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { loadUserGroups } from "../lib/user-groups";
 import { hashPassword } from "../lib/password";
-import { toSessionUser } from "../lib/session-user";
+import { ApiError } from "../lib/api-error";
 
 export const usersRouter = Router();
 
-usersRouter.use(requireAuth, requireRole("admin"));
+usersRouter.use(requireAuth, requireRole("administrateur"));
 
-function isSeedAccount(id: string) {
-  return id === "u-admin-1" || /^u-supervisor-\d+$/.test(id);
+async function serializeUser(user: {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string | null;
+  role: "superviseur" | "administrateur" | "approbateur";
+  isActive: boolean;
+  createdAt: Date;
+}) {
+  const groups = await loadUserGroups(user.id);
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    groups,
+  };
 }
+
+// ========= GET /groups (annuaire des groupes, pour le sélecteur d'affectation) =========
+// Déclarée avant /:id pour ne pas être capturée par ce paramètre.
+usersRouter.get("/groups", async (_req, res) => {
+  const groups = await prisma.group.findMany({ orderBy: { name: "asc" } });
+  res.json({ groups });
+});
+
+// ========= GET / =========
 
 usersRouter.get("/", async (_req, res) => {
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
-  res.json({ users: users.map(toSessionUser) });
+  const users = await prisma.user.findMany({ orderBy: { displayName: "asc" } });
+  res.json({ users: await Promise.all(users.map(serializeUser)) });
 });
 
-const createUserSchema = z.object({
-  name: z.string().min(1),
+// ========= POST / =========
+
+const createUserBody = z.object({
   username: z.string().min(3),
-  email: z.string().email(),
-  password: z.string().min(8, "8 caractères minimum"),
-  role: z.enum(["admin", "supervisor"]).default("supervisor"),
-  groups: z.array(z.string()).default([]),
+  displayName: z.string().min(1),
+  email: z.string().email().nullable().optional(),
+  role: z.enum(["superviseur", "administrateur", "approbateur"]).default("superviseur"),
+  password: z.string().min(8, "8 caractères minimum."),
+  groupIds: z.array(z.string().uuid()).default([]),
 });
 
-function initialsFor(name: string): string {
-  const initials = name
-    .split(/\s+/)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .slice(0, 2)
-    .join("");
-  return initials || "??";
-}
-
-/** crée un compte avec un vrai mot de passe. */
 usersRouter.post("/", async (req, res) => {
-  const parsed = createUserSchema.safeParse(req.body);
-  if (!parsed.success)
-    return res
-      .status(400)
-      .json({ error: "invalid_body", details: parsed.error.flatten() });
-  const { password, ...rest } = parsed.data;
-
-  const conflict = await prisma.user.findFirst({
-    where: { OR: [{ username: rest.username }, { email: rest.email }] },
-  });
-  if (conflict)
-    return res.status(409).json({ error: "username_or_email_taken" });
-
-  const user = await prisma.user.create({
-    data: {
-      ...rest,
-      passwordHash: await hashPassword(password),
-      initials: initialsFor(rest.name),
-    },
-  });
-  res.status(201).json({ user: toSessionUser(user) });
-});
-
-const updateUserSchema = z.object({
-  name: z.string().min(1).optional(),
-  username: z.string().min(3).optional(),
-  email: z.string().email().optional(),
-  role: z.enum(["admin", "supervisor"]).optional(),
-  groups: z.array(z.string()).optional(),
-  isActive: z.boolean().optional(),
-  password: z.string().min(8).optional(),
-});
-
-/** modifie le profil, le rôle, les groupes, ou désactive/réactive. */
-usersRouter.patch("/:id", async (req, res) => {
-  const parsed = updateUserSchema.safeParse(req.body);
-  if (!parsed.success)
-    return res
-      .status(400)
-      .json({ error: "invalid_body", details: parsed.error.flatten() });
-  const { password, ...rest } = parsed.data;
-
-  if (rest.isActive === false && req.params.id === req.user!.id) {
-    return res.status(400).json({ error: "cannot_deactivate_self" });
+  const parsed = createUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(422, "invalid_body", "Corps de requête invalide.", parsed.error.flatten());
   }
+  const { username, displayName, email, role, password, groupIds } = parsed.data;
+
+  const passwordHash = await hashPassword(password);
 
   try {
-    const user = await prisma.user.update({
-      where: { id: req.params.id },
+    const user = await prisma.user.create({
       data: {
-        ...rest,
-        ...(password ? { passwordHash: await hashPassword(password) } : {}),
+        username,
+        displayName,
+        email: email ?? null,
+        role,
+        passwordHash,
+        userGroups: { create: groupIds.map((groupId) => ({ groupId })) },
       },
     });
-    res.json({ user: toSessionUser(user) });
-  } catch {
-    res.status(404).json({ error: "not_found" });
+    res.status(201).json(await serializeUser(user));
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ApiError(409, "username_taken", "Cet identifiant est déjà utilisé.");
+    }
+    throw err;
   }
 });
 
-/** les comptes de démonstration sont protégés (désactiver plutôt que supprimer). */
-usersRouter.delete("/:id", async (req, res) => {
-  if (isSeedAccount(req.params.id)) {
-    return res.status(400).json({ error: "seed_account_protected" });
+// ========= PATCH /:id =========
+
+const patchUserBody = z.object({
+  displayName: z.string().min(1).optional(),
+  username: z.string().min(3).optional(),
+  email: z.string().email().nullable().optional(),
+  role: z.enum(["superviseur", "administrateur", "approbateur"]).optional(),
+  isActive: z.boolean().optional(),
+  password: z.string().min(8).optional(),
+  groupIds: z.array(z.string().uuid()).optional(),
+});
+
+usersRouter.patch("/:id", async (req, res) => {
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!target) throw new ApiError(404, "not_found", "Utilisateur introuvable.");
+
+  const parsed = patchUserBody.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(422, "invalid_body", "Corps de requête invalide.", parsed.error.flatten());
   }
+  const { password, groupIds, ...rest } = parsed.data;
+
+  if (target.id === req.user!.id && rest.isActive === false) {
+    throw new ApiError(
+      400,
+      "cannot_disable_self",
+      "Vous ne pouvez pas désactiver votre propre compte.",
+    );
+  }
+  if (target.id === req.user!.id && rest.role && rest.role !== "administrateur") {
+    throw new ApiError(
+      400,
+      "cannot_demote_self",
+      "Vous ne pouvez pas retirer votre propre rôle administrateur.",
+    );
+  }
+
   try {
-    await prisma.user.delete({ where: { id: req.params.id } });
-    res.status(204).end();
-  } catch {
-    res.status(404).json({ error: "not_found" });
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: target.id },
+        data: {
+          ...rest,
+          passwordHash: password ? await hashPassword(password) : undefined,
+        },
+      });
+      if (groupIds) {
+        await tx.userGroup.deleteMany({ where: { userId: target.id } });
+        await tx.userGroup.createMany({
+          data: groupIds.map((groupId) => ({ userId: target.id, groupId })),
+        });
+      }
+      return updated;
+    });
+    res.json(await serializeUser(user));
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ApiError(409, "username_taken", "Cet identifiant est déjà utilisé.");
+    }
+    throw err;
   }
+});
+
+// ========= DELETE /:id =========
+
+usersRouter.delete("/:id", async (req, res) => {
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!target) throw new ApiError(404, "not_found", "Utilisateur introuvable.");
+  if (target.id === req.user!.id) {
+    throw new ApiError(400, "cannot_delete_self", "Vous ne pouvez pas supprimer votre propre compte.");
+  }
+
+  await prisma.user.delete({ where: { id: target.id } });
+  res.status(204).end();
 });
