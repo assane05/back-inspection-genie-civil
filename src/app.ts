@@ -2,7 +2,6 @@ import "express-async-errors";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import path from "node:path";
 import { env } from "./env";
 import { attachUser } from "./middleware/auth";
 import { notFoundHandler, errorHandler } from "./middleware/error-handler";
@@ -27,8 +26,6 @@ app.use(cookieParser());
 app.use(express.json({ limit: "25mb" }));
 app.use(attachUser);
 
-app.use("/uploads", express.static(path.resolve(env.uploadDir)));
-
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
@@ -36,6 +33,10 @@ app.use("/api/form-types", formTypesRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/inspections", inspectionsRouter);
 app.use("/api/users", usersRouter);
+
+// tasks/dictionary/submissions routées sur l'ancien schéma (Task/Submission/
+// Photo/DictionaryEntry) supprimé plus tôt. Elles ne compilent plus en
+// l'état — à réécrire ou retirer si nécessaire.
 
 app.use(notFoundHandler);
 app.use(errorHandler);

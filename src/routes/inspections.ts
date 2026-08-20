@@ -4,7 +4,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { requireAuth, assertGroupAccess } from "../middleware/auth";
 import { ApiError } from "../lib/api-error";
-import { isImageDataUrl, savePhotoFromDataUrl } from "../lib/photo-storage";
+import {
+  isImageDataUrl,
+  savePhotoFromDataUrl,
+  deletePhoto,
+} from "../lib/photo-storage";
 
 export const inspectionsRouter = Router();
 
@@ -171,32 +175,34 @@ inspectionsRouter.patch("/:id/values", async (req, res) => {
       if (v.segmentId) {
         await tx.$executeRaw`
           INSERT INTO inspection_values
-            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment)
+            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment, updated_at)
           VALUES
             (${inspection.id}::uuid, ${v.itemId}::uuid, ${v.segmentId}::uuid, ${v.state}::finding_state,
-             ${severity}::severity_level, ${reveal}, ${location}, ${comment})
+             ${severity}::severity_level, ${reveal}, ${location}, ${comment}, now())
           ON CONFLICT (inspection_id, item_id, segment_id)
           DO UPDATE SET
             state = EXCLUDED.state,
             severity = EXCLUDED.severity,
             reveal_qualitative = EXCLUDED.reveal_qualitative,
             location_action = EXCLUDED.location_action,
-            comment = EXCLUDED.comment
+            comment = EXCLUDED.comment,
+            updated_at = now()
         `;
       } else {
         await tx.$executeRaw`
           INSERT INTO inspection_values
-            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment)
+            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment, updated_at)
           VALUES
             (${inspection.id}::uuid, ${v.itemId}::uuid, NULL, ${v.state}::finding_state,
-             ${severity}::severity_level, ${reveal}, ${location}, ${comment})
+             ${severity}::severity_level, ${reveal}, ${location}, ${comment}, now())
           ON CONFLICT (inspection_id, item_id) WHERE segment_id IS NULL
           DO UPDATE SET
             state = EXCLUDED.state,
             severity = EXCLUDED.severity,
             reveal_qualitative = EXCLUDED.reveal_qualitative,
             location_action = EXCLUDED.location_action,
-            comment = EXCLUDED.comment
+            comment = EXCLUDED.comment,
+            updated_at = now()
         `;
       }
     }
@@ -341,6 +347,7 @@ async function loadOwnedValueOrThrow(inspectionId: string, valueId: string) {
 
 const uploadPhotoBody = z.object({
   dataUrl: z.string().min(1),
+  idempotencyKey: z.string().optional(),
 });
 
 inspectionsRouter.post("/:id/values/:valueId/photos", async (req, res) => {
@@ -358,7 +365,19 @@ inspectionsRouter.post("/:id/values/:valueId/photos", async (req, res) => {
       parsed.error.flatten(),
     );
   }
-  if (!isImageDataUrl(parsed.data.dataUrl)) {
+  const { dataUrl, idempotencyKey } = parsed.data;
+
+  if (idempotencyKey) {
+    const existing = await prisma.inspectionPhoto.findFirst({
+      where: {
+        inspectionValueId: req.params.valueId,
+        clientRef: idempotencyKey,
+      },
+    });
+    if (existing) return res.status(200).json(existing);
+  }
+
+  if (!isImageDataUrl(dataUrl)) {
     throw new ApiError(
       422,
       "invalid_image",
@@ -366,15 +385,33 @@ inspectionsRouter.post("/:id/values/:valueId/photos", async (req, res) => {
     );
   }
 
-  const stored = await savePhotoFromDataUrl(parsed.data.dataUrl);
-  const photo = await prisma.inspectionPhoto.create({
-    data: {
-      inspectionValueId: req.params.valueId,
-      url: stored.url,
-    },
-  });
-
-  res.status(201).json(photo);
+  const stored = await savePhotoFromDataUrl(dataUrl);
+  try {
+    const photo = await prisma.inspectionPhoto.create({
+      data: {
+        inspectionValueId: req.params.valueId,
+        url: stored.url,
+        storageKey: stored.storageKey,
+        clientRef: idempotencyKey ?? null,
+      },
+    });
+    return res.status(201).json(photo);
+  } catch (err) {
+    if (
+      idempotencyKey &&
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      const raced = await prisma.inspectionPhoto.findFirst({
+        where: {
+          inspectionValueId: req.params.valueId,
+          clientRef: idempotencyKey,
+        },
+      });
+      if (raced) return res.status(200).json(raced);
+    }
+    throw err;
+  }
 });
 
 // ========= DELETE /:id/values/:valueId/photos/:photoId =========
@@ -399,6 +436,15 @@ inspectionsRouter.delete(
     }
 
     await prisma.inspectionPhoto.delete({ where: { id: photo.id } });
+    try {
+      await deletePhoto(photo.storageKey);
+    } catch (err) {
+      console.error(
+        "Échec de suppression de l'objet S3",
+        photo.storageKey,
+        err,
+      );
+    }
     res.status(204).end();
   },
 );

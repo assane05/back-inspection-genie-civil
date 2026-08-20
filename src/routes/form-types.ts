@@ -9,6 +9,19 @@ export const formTypesRouter = Router();
 formTypesRouter.use(requireAuth);
 
 /**
+ * Liste des fiches actives — pour le sélecteur de création d'assignation
+ * côté admin. Lecture pure.
+ */
+formTypesRouter.get("/", async (_req, res) => {
+  const formTypes = await prisma.formType.findMany({
+    where: { isActive: true },
+    orderBy: [{ module: "asc" }, { name: "asc" }],
+    select: { id: true, code: true, name: true, module: true, version: true },
+  });
+  res.json({ formTypes });
+});
+
+/**
  * Modèle complet d'une fiche : familles/catégories (form_sections), leurs
  * items de contrôle (form_items), et les segments spatiaux de la fiche
  * (form_segments — vide pour le module bâtiment).

@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { env } from "../env";
 
 const MIME_EXT: Record<string, string> = {
@@ -20,6 +23,30 @@ export function isImageDataUrl(value: string): boolean {
   return /^data:image\/(jpeg|png|webp);base64,/.test(value);
 }
 
+let client: S3Client | undefined;
+
+/** Lazy — évite d'instancier le client (et de valider les credentials) au simple import du module, utile pour les tests unitaires qui mockent ce module. */
+function s3(): S3Client {
+  if (!client) {
+    client = new S3Client({
+      region: env.s3Region,
+      endpoint: env.s3Endpoint,
+      forcePathStyle: env.s3ForcePathStyle,
+      credentials: {
+        accessKeyId: env.s3AccessKeyId,
+        secretAccessKey: env.s3SecretAccessKey,
+      },
+    });
+  }
+  return client;
+}
+
+/**
+ * Stockage objets compatible S3 (AWS S3, MinIO, R2, Spaces...) — remplace
+ * l'écriture sur disque local. L'URL publique est toujours construite à
+ * partir de PUBLIC_UPLOAD_BASE_URL (obligatoire, sans défaut localhost —
+ * cf. env.ts et l'audit de l'ancienne application).
+ */
 export async function savePhotoFromDataUrl(
   dataUrl: string,
 ): Promise<StoredPhoto> {
@@ -29,21 +56,31 @@ export async function savePhotoFromDataUrl(
   const buffer = Buffer.from(base64, "base64");
 
   const now = new Date();
-  const dir = path.join(
+  const storageKey = [
     String(now.getFullYear()),
     String(now.getMonth() + 1).padStart(2, "0"),
-  );
-  const filename = `${randomUUID()}.${MIME_EXT[mimeType] ?? "jpg"}`;
-  const storageKey = path.join(dir, filename);
+    `${randomUUID()}.${MIME_EXT[mimeType] ?? "jpg"}`,
+  ].join("/");
 
-  const absoluteDir = path.join(path.resolve(env.uploadDir), dir);
-  await mkdir(absoluteDir, { recursive: true });
-  await writeFile(path.join(absoluteDir, filename), buffer);
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: env.s3Bucket,
+      Key: storageKey,
+      Body: buffer,
+      ContentType: mimeType,
+    }),
+  );
 
   return {
     storageKey,
-    url: `${env.publicUploadBaseUrl.replace(/\/$/, "")}/${storageKey.split(path.sep).join("/")}`,
+    url: `${env.publicUploadBaseUrl.replace(/\/$/, "")}/${storageKey}`,
     mimeType,
     sizeBytes: buffer.byteLength,
   };
+}
+
+export async function deletePhoto(storageKey: string): Promise<void> {
+  await s3().send(
+    new DeleteObjectCommand({ Bucket: env.s3Bucket, Key: storageKey }),
+  );
 }

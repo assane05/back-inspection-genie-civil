@@ -12,10 +12,12 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "seed:admin": "tsx prisma/seed-admin.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1113.0",
     "@prisma/client": "^6.1.0",
     "argon2": "^0.45.1",
     "bcryptjs": "^2.4.3",

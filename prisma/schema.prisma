@@ -245,12 +245,13 @@ model InspectionValue {
   id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inspectionId      String         @map("inspection_id") @db.Uuid
   itemId            String         @map("item_id") @db.Uuid
-  segmentId         String?        @map("segment_id") @db.Uuid // NULL pour bâtiment
+  segmentId         String?        @map("segment_id") @db.Uuid 
   state             FindingState   @default(non_inspecte)
   severity          SeverityLevel?
-  revealQualitative String?        @map("reveal_qualitative") // "Léger" / "Moyen"
-  locationAction    String?        @map("location_action") // localisation du défaut
+  revealQualitative String?        @map("reveal_qualitative") 
+  locationAction    String?        @map("location_action") 
   comment           String?
+  updatedAt         DateTime       @default(now()) @map("updated_at") 
 
   inspection Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   item       FormItem     @relation(fields: [itemId], references: [id])
@@ -267,12 +268,15 @@ model InspectionValue {
 model InspectionPhoto {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inspectionValueId  String   @map("inspection_value_id") @db.Uuid
-  url                String // stockage objets (URL valide, cf. audit)
+  url                String 
   thumbUrl           String?  @map("thumb_url")
+  storageKey         String   @map("storage_key") 
+  clientRef          String?  @map("client_ref") 
   createdAt          DateTime @default(now()) @map("created_at")
 
   inspectionValue InspectionValue @relation(fields: [inspectionValueId], references: [id], onDelete: Cascade)
 
+  @@unique([inspectionValueId, clientRef], map: "idx_photos_client_ref_unique")
   @@index([inspectionValueId], map: "idx_photos_value")
   @@map("inspection_photos")
 }

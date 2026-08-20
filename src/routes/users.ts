@@ -53,7 +53,9 @@ const createUserBody = z.object({
   username: z.string().min(3),
   displayName: z.string().min(1),
   email: z.string().email().nullable().optional(),
-  role: z.enum(["superviseur", "administrateur", "approbateur"]).default("superviseur"),
+  role: z
+    .enum(["superviseur", "administrateur", "approbateur"])
+    .default("superviseur"),
   password: z.string().min(8, "8 caractères minimum."),
   groupIds: z.array(z.string().uuid()).default([]),
 });
@@ -61,9 +63,15 @@ const createUserBody = z.object({
 usersRouter.post("/", async (req, res) => {
   const parsed = createUserBody.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(422, "invalid_body", "Corps de requête invalide.", parsed.error.flatten());
+    throw new ApiError(
+      422,
+      "invalid_body",
+      "Corps de requête invalide.",
+      parsed.error.flatten(),
+    );
   }
-  const { username, displayName, email, role, password, groupIds } = parsed.data;
+  const { username, displayName, email, role, password, groupIds } =
+    parsed.data;
 
   const passwordHash = await hashPassword(password);
 
@@ -80,8 +88,15 @@ usersRouter.post("/", async (req, res) => {
     });
     res.status(201).json(await serializeUser(user));
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new ApiError(409, "username_taken", "Cet identifiant est déjà utilisé.");
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new ApiError(
+        409,
+        "username_taken",
+        "Cet identifiant est déjà utilisé.",
+      );
     }
     throw err;
   }
@@ -105,7 +120,12 @@ usersRouter.patch("/:id", async (req, res) => {
 
   const parsed = patchUserBody.safeParse(req.body);
   if (!parsed.success) {
-    throw new ApiError(422, "invalid_body", "Corps de requête invalide.", parsed.error.flatten());
+    throw new ApiError(
+      422,
+      "invalid_body",
+      "Corps de requête invalide.",
+      parsed.error.flatten(),
+    );
   }
   const { password, groupIds, ...rest } = parsed.data;
 
@@ -116,7 +136,11 @@ usersRouter.patch("/:id", async (req, res) => {
       "Vous ne pouvez pas désactiver votre propre compte.",
     );
   }
-  if (target.id === req.user!.id && rest.role && rest.role !== "administrateur") {
+  if (
+    target.id === req.user!.id &&
+    rest.role &&
+    rest.role !== "administrateur"
+  ) {
     throw new ApiError(
       400,
       "cannot_demote_self",
@@ -143,8 +167,15 @@ usersRouter.patch("/:id", async (req, res) => {
     });
     res.json(await serializeUser(user));
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new ApiError(409, "username_taken", "Cet identifiant est déjà utilisé.");
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new ApiError(
+        409,
+        "username_taken",
+        "Cet identifiant est déjà utilisé.",
+      );
     }
     throw err;
   }
@@ -156,7 +187,11 @@ usersRouter.delete("/:id", async (req, res) => {
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!target) throw new ApiError(404, "not_found", "Utilisateur introuvable.");
   if (target.id === req.user!.id) {
-    throw new ApiError(400, "cannot_delete_self", "Vous ne pouvez pas supprimer votre propre compte.");
+    throw new ApiError(
+      400,
+      "cannot_delete_self",
+      "Vous ne pouvez pas supprimer votre propre compte.",
+    );
   }
 
   await prisma.user.delete({ where: { id: target.id } });

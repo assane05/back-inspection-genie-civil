@@ -25,13 +25,32 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: las_minio
+          MINIO_ROOT_PASSWORD: las_minio_password
+          MINIO_DEFAULT_BUCKETS: las-inspection-photos
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql://las:las_ci_password@localhost:5432/las_inspections_ci
+      # FRONTEND_ORIGIN: http://localhost:5173
       FRONTEND_ORIGIN: http://localhost:8080
       SESSION_COOKIE_NAME: las_session
-      PHOTO_STORAGE_DRIVER: local
-      UPLOAD_DIR: ./uploads
-      PUBLIC_UPLOAD_BASE_URL: http://localhost:4000/uploads
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: las-inspection-photos
+      S3_ACCESS_KEY_ID: las_minio
+      S3_SECRET_ACCESS_KEY: las_minio_password
+      S3_FORCE_PATH_STYLE: "true"
+      PUBLIC_UPLOAD_BASE_URL: http://localhost:9000/las-inspection-photos
       DEMO_SEED_PASSWORD: CiOnlyPlaceholder123!
 
     defaults:

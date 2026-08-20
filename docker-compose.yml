@@ -11,5 +11,30 @@ services:
     volumes:
       - las_postgres_data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: las_minio
+      MINIO_ROOT_PASSWORD: las_minio_password
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - las_minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set local http://minio:9000 las_minio las_minio_password) do sleep 1; done;
+      mc mb --ignore-existing local/las-inspection-photos;
+      mc anonymous set download local/las-inspection-photos;
+      "
+
 volumes:
   las_postgres_data:
+  las_minio_data:
