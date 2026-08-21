@@ -34,9 +34,5 @@ app.use("/api/assignments", assignmentsRouter);
 app.use("/api/inspections", inspectionsRouter);
 app.use("/api/users", usersRouter);
 
-// tasks/dictionary/submissions routées sur l'ancien schéma (Task/Submission/
-// Photo/DictionaryEntry) supprimé plus tôt. Elles ne compilent plus en
-// l'état — à réécrire ou retirer si nécessaire.
-
 app.use(notFoundHandler);
 app.use(errorHandler);
