@@ -10,6 +10,7 @@ import { formTypesRouter } from "./routes/form-types";
 import { assignmentsRouter } from "./routes/assignments";
 import { inspectionsRouter } from "./routes/inspections";
 import { usersRouter } from "./routes/users";
+import { catalogRouter } from "./routes/catalog";
 // import { tasksRouter } from "./routes/tasks";
 // import { dictionaryRouter } from "./routes/dictionary";
 // import { submissionsRouter } from "./routes/submissions";
@@ -33,6 +34,7 @@ app.use("/api/form-types", formTypesRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/inspections", inspectionsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/catalog", catalogRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

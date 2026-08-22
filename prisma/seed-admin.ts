@@ -4,22 +4,6 @@ import { env } from "../src/env";
 
 const prisma = new PrismaClient();
 
-/**
- * Comptes de démonstration pour tester l'app de bout en bout :
- * - un administrateur (accès /dashboard)
- * - un superviseur rattaché à "Supervisor 1" (accès /supervisor/tasks)
- * - une assignation "Runway" pour ce superviseur, sinon l'écran des tâches
- *   serait vide (prisma/seed.ts ne crée que les données de référence, aucun
- *   compte ni aucune assignation).
- *
- * Le champ email du formulaire de login exige un "@" (type="email" côté
- * front) : les comptes ci-dessous ont donc un email même si le backend
- * accepte aussi bien username qu'email pour se connecter.
- *
- * Idempotent — se relance sans effet si tout existe déjà. Mot de passe
- * identique pour les deux comptes, à changer après le premier login en
- * environnement partagé.
- */
 async function ensureUser(opts: {
   username: string;
   email: string;
