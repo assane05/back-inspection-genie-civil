@@ -15,6 +15,10 @@
     "seed:admin": "tsx prisma/seed-admin.ts",
     "seed:runway": "tsx prisma/seed-runway.ts",
     "seed:apron": "tsx prisma/seed-apron.ts",
+    "seed:chemin-ronde": "tsx prisma/seed-chemin-ronde.ts",
+    "seed:fence-ouvrage-service": "tsx prisma/seed-fence-ouvrage-service.ts",
+    "seed:taxiway-parking": "tsx prisma/seed-taxiway-parking.ts",
+    "seed:fiches": "npm run seed:runway && npm run seed:apron && npm run seed:chemin-ronde && npm run seed:fence-ouvrage-service && npm run seed:taxiway-parking",
     "test": "vitest run",
     "test:watch": "vitest"
   },
