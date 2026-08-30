@@ -26,18 +26,6 @@ async function loadInspectionOrThrow(id: string) {
  * endpoints de mutation/schéma, mais nécessaire au frontend pour afficher
  * l'état déjà saisi lors d'une reprise de brouillon). Aucun effet de bord.
  */
-// inspectionsRouter.get("/:id", async (req, res) => {
-//   const inspection = await loadInspectionOrThrow(req.params.id);
-//   assertGroupAccess(req.user!, inspection.groupId);
-
-//   const values = await prisma.inspectionValue.findMany({
-//     where: { inspectionId: inspection.id },
-//     include: { photos: true },
-//   });
-
-//   res.json({ ...inspection, values });
-// });
-
 inspectionsRouter.get("/:id", async (req, res) => {
   const inspection = await loadInspectionOrThrow(req.params.id);
   assertGroupAccess(req.user!, inspection.groupId);
@@ -113,6 +101,11 @@ const valueInput = z.object({
   state: z.enum(["non_inspecte", "ras", "minor", "major", "yes", "na"]),
   severity: z.enum(["leger", "moyen", "eleve"]).nullable().optional(),
   revealQualitative: z.string().nullable().optional(),
+  // Fiche de Suivi (FS) — "revélé quantitatif". Légende : S = Surface (m²),
+  // long = longueur (m), h ou p = hauteur ou profondeur (m).
+  measurementSurfaceM2: z.number().nullable().optional(),
+  measurementLengthM: z.number().nullable().optional(),
+  measurementHeightOrDepthM: z.number().nullable().optional(),
   locationAction: z.string().nullable().optional(),
   comment: z.string().nullable().optional(),
 });
@@ -121,6 +114,14 @@ const patchValuesBody = z.object({
   values: z.array(valueInput).min(1, "Au moins un constat est requis."),
 });
 
+/**
+ * Upsert par lot, idempotent : rejouer deux fois le même PATCH ne crée
+ * qu'une seule ligne par (inspection_id, item_id, segment_id). S'appuie sur
+ * INSERT ... ON CONFLICT plutôt que sur un SELECT préalable, pour rester
+ * correct sous tentatives concurrentes (retry hors-ligne PWA notamment).
+ * Deux variantes de conflit car segment_id est nullable et NULL <> NULL en
+ * SQL (cf. migration idx_inspection_values_no_segment).
+ */
 inspectionsRouter.patch("/:id/values", async (req, res) => {
   const inspection = await loadInspectionOrThrow(req.params.id);
   assertGroupAccess(req.user!, inspection.groupId);
@@ -165,25 +166,53 @@ inspectionsRouter.patch("/:id/values", async (req, res) => {
     );
   }
 
+  const exclusions = await prisma.formItemSegmentExclusion.findMany({
+    where: { itemId: { in: values.map((v) => v.itemId) } },
+  });
+  const excludedPairs = new Set(
+    exclusions.map((e) => `${e.itemId}:${e.segmentId}`),
+  );
+  const excluded = values.filter(
+    (v) =>
+      v.segmentId != null && excludedPairs.has(`${v.itemId}:${v.segmentId}`),
+  );
+  if (excluded.length > 0) {
+    throw new ApiError(
+      422,
+      "not_applicable",
+      "Ce constat ne s'applique pas à ce segment pour cette fiche.",
+      { excluded },
+    );
+  }
+
   await prisma.$transaction(async (tx) => {
     for (const v of values) {
       const severity = v.severity ?? null;
       const reveal = v.revealQualitative ?? null;
       const location = v.locationAction ?? null;
       const comment = v.comment ?? null;
+      const surface = v.measurementSurfaceM2 ?? null;
+      const length = v.measurementLengthM ?? null;
+      const heightOrDepth = v.measurementHeightOrDepthM ?? null;
 
       if (v.segmentId) {
         await tx.$executeRaw`
           INSERT INTO inspection_values
-            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment, updated_at)
+            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative,
+             measurement_surface_m2, measurement_length_m, measurement_height_or_depth_m,
+             location_action, comment, updated_at)
           VALUES
             (${inspection.id}::uuid, ${v.itemId}::uuid, ${v.segmentId}::uuid, ${v.state}::finding_state,
-             ${severity}::severity_level, ${reveal}, ${location}, ${comment}, now())
+             ${severity}::severity_level, ${reveal}, ${surface}, ${length}, ${heightOrDepth},
+             ${location}, ${comment}, now())
           ON CONFLICT (inspection_id, item_id, segment_id)
           DO UPDATE SET
             state = EXCLUDED.state,
             severity = EXCLUDED.severity,
             reveal_qualitative = EXCLUDED.reveal_qualitative,
+            measurement_surface_m2 = EXCLUDED.measurement_surface_m2,
+            measurement_length_m = EXCLUDED.measurement_length_m,
+            measurement_height_or_depth_m = EXCLUDED.measurement_height_or_depth_m,
             location_action = EXCLUDED.location_action,
             comment = EXCLUDED.comment,
             updated_at = now()
@@ -191,15 +220,21 @@ inspectionsRouter.patch("/:id/values", async (req, res) => {
       } else {
         await tx.$executeRaw`
           INSERT INTO inspection_values
-            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative, location_action, comment, updated_at)
+            (inspection_id, item_id, segment_id, state, severity, reveal_qualitative,
+             measurement_surface_m2, measurement_length_m, measurement_height_or_depth_m,
+             location_action, comment, updated_at)
           VALUES
             (${inspection.id}::uuid, ${v.itemId}::uuid, NULL, ${v.state}::finding_state,
-             ${severity}::severity_level, ${reveal}, ${location}, ${comment}, now())
+             ${severity}::severity_level, ${reveal}, ${surface}, ${length}, ${heightOrDepth},
+             ${location}, ${comment}, now())
           ON CONFLICT (inspection_id, item_id) WHERE segment_id IS NULL
           DO UPDATE SET
             state = EXCLUDED.state,
             severity = EXCLUDED.severity,
             reveal_qualitative = EXCLUDED.reveal_qualitative,
+            measurement_surface_m2 = EXCLUDED.measurement_surface_m2,
+            measurement_length_m = EXCLUDED.measurement_length_m,
+            measurement_height_or_depth_m = EXCLUDED.measurement_height_or_depth_m,
             location_action = EXCLUDED.location_action,
             comment = EXCLUDED.comment,
             updated_at = now()
@@ -226,6 +261,12 @@ inspectionsRouter.patch("/:id/values", async (req, res) => {
 
 // ========= POST /:id/sections/:sectionId/mark-all-ras =========
 
+/**
+ * "Tout RAS" [D4][D5] : passe à `ras` uniquement les constats encore
+ * `non_inspecte` (créés à la volée s'ils n'existent pas encore) — n'écrase
+ * jamais un défaut déjà saisi. La condition `WHERE state = 'non_inspecte'`
+ * dans le ON CONFLICT rend l'opération atomique et sûre en concurrence.
+ */
 inspectionsRouter.post(
   "/:id/sections/:sectionId/mark-all-ras",
   async (req, res) => {
@@ -259,16 +300,16 @@ inspectionsRouter.post(
         for (const segmentId of segmentIds) {
           const result = segmentId
             ? await tx.$executeRaw`
-              INSERT INTO inspection_values (inspection_id, item_id, segment_id, state)
-              VALUES (${inspection.id}::uuid, ${item.id}::uuid, ${segmentId}::uuid, 'ras')
+              INSERT INTO inspection_values (inspection_id, item_id, segment_id, state, updated_at)
+              VALUES (${inspection.id}::uuid, ${item.id}::uuid, ${segmentId}::uuid, 'ras', now())
               ON CONFLICT (inspection_id, item_id, segment_id)
-              DO UPDATE SET state = 'ras' WHERE inspection_values.state = 'non_inspecte'
+              DO UPDATE SET state = 'ras', updated_at = now() WHERE inspection_values.state = 'non_inspecte'
             `
             : await tx.$executeRaw`
-              INSERT INTO inspection_values (inspection_id, item_id, segment_id, state)
-              VALUES (${inspection.id}::uuid, ${item.id}::uuid, NULL, 'ras')
+              INSERT INTO inspection_values (inspection_id, item_id, segment_id, state, updated_at)
+              VALUES (${inspection.id}::uuid, ${item.id}::uuid, NULL, 'ras', now())
               ON CONFLICT (inspection_id, item_id) WHERE segment_id IS NULL
-              DO UPDATE SET state = 'ras' WHERE inspection_values.state = 'non_inspecte'
+              DO UPDATE SET state = 'ras', updated_at = now() WHERE inspection_values.state = 'non_inspecte'
             `;
           touched += Number(result);
         }
@@ -289,6 +330,12 @@ inspectionsRouter.post(
 
 // ========= POST /:id/submit =========
 
+/**
+ * Validations de soumission. Seule règle confirmée en l'état ([acceptance
+ * criteria]) : un défaut (minor/major) sans sévérité est rejeté. Le reste
+ * du §5.4 (non transmis intégralement) n'est pas encore implémenté — à
+ * compléter dès réception du détail complet de la section.
+ */
 inspectionsRouter.post("/:id/submit", async (req, res) => {
   const inspection = await loadInspectionOrThrow(req.params.id);
   assertGroupAccess(req.user!, inspection.groupId);
@@ -350,6 +397,12 @@ const uploadPhotoBody = z.object({
   idempotencyKey: z.string().optional(),
 });
 
+/**
+ * Ajout d'une photo à un constat, stockage objets S3-compatible (cf.
+ * lib/photo-storage.ts). Idempotent via idempotencyKey : la file
+ * hors-ligne (front) peut rejouer cette requête sans risque de doublon si
+ * la réponse d'un envoi précédent n'a jamais été reçue.
+ */
 inspectionsRouter.post("/:id/values/:valueId/photos", async (req, res) => {
   const inspection = await loadInspectionOrThrow(req.params.id);
   assertGroupAccess(req.user!, inspection.groupId);
@@ -439,6 +492,9 @@ inspectionsRouter.delete(
     try {
       await deletePhoto(photo.storageKey);
     } catch (err) {
+      // La ligne DB est supprimée (source de vérité pour l'app) ; un objet
+      // orphelin dans le bucket est un coût de stockage, pas une incohérence
+      // fonctionnelle — on log plutôt que de faire échouer la requête.
       console.error(
         "Échec de suppression de l'objet S3",
         photo.storageKey,
@@ -456,6 +512,13 @@ const correctiveActionBody = z.object({
   description: z.string().nullable().optional(),
 });
 
+/**
+ * Lien vers une fiche de non-conformité externe (ex. "Ouverture d'une fiche
+ * de réparation N°..."), traçable mais non obligatoire — cf. corrective_
+ * actions du schéma v1.1. Un seul enregistrement par constat dans cette
+ * API (upsert), la table autorise plus mais l'usage existant n'en avait
+ * besoin que d'un.
+ */
 inspectionsRouter.put(
   "/:id/values/:valueId/corrective-action",
   async (req, res) => {

@@ -13,6 +13,8 @@
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "seed:admin": "tsx prisma/seed-admin.ts",
+    "seed:runway": "tsx prisma/seed-runway.ts",
+    "seed:apron": "tsx prisma/seed-apron.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

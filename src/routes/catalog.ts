@@ -343,3 +343,35 @@ catalogRouter.delete("/segments/:id", async (req, res) => {
     );
   }
 });
+
+// ========= EXCLUSIONS (cellules non applicables item × segment) =========
+// Ex. FIB Runway : "Marque de seuil de piste" ne s'applique pas à la zone
+// 2/3 sur la fiche réelle (cellule grisée).
+
+catalogRouter.put("/items/:itemId/exclusions/:segmentId", async (req, res) => {
+  const item = await prisma.formItem.findUnique({
+    where: { id: req.params.itemId },
+  });
+  if (!item) throw new ApiError(404, "not_found", "Item introuvable.");
+  const segment = await prisma.formSegment.findUnique({
+    where: { id: req.params.segmentId },
+  });
+  if (!segment) throw new ApiError(404, "not_found", "Segment introuvable.");
+
+  await prisma.formItemSegmentExclusion.upsert({
+    where: { itemId_segmentId: { itemId: item.id, segmentId: segment.id } },
+    update: {},
+    create: { itemId: item.id, segmentId: segment.id },
+  });
+  res.status(204).end();
+});
+
+catalogRouter.delete(
+  "/items/:itemId/exclusions/:segmentId",
+  async (req, res) => {
+    await prisma.formItemSegmentExclusion.deleteMany({
+      where: { itemId: req.params.itemId, segmentId: req.params.segmentId },
+    });
+    res.status(204).end();
+  },
+);

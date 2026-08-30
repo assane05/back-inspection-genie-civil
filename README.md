@@ -17,3 +17,9 @@ npm run dev
 ```
 
 - Changer/désactiver `DEMO_SEED_PASSWORD`
+  pour stoper le service postgre win
+  Stop-Service postgresql-x64-17
+
+  ## docker ps
+
+  pour savoir quelle BD run
