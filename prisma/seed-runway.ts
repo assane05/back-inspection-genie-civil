@@ -88,6 +88,49 @@ const BALISAGE_ITEMS: { label: string; excludeFromSegment23: boolean }[] = [
   { label: "MARQUE D'INDICATEUR DE VENT", excludeFromSegment23: true },
 ];
 
+// async function rebuildFormType(opts: {
+//   code: string;
+//   name: string;
+//   segments: string[];
+//   sections: { label: string; items: string[] }[];
+// }) {
+//   const formType = await prisma.formType.upsert({
+//     where: { code_version: { code: opts.code, version: 1 } },
+//     update: { name: opts.name, module: "horizontal" },
+//     create: {
+//       code: opts.code,
+//       name: opts.name,
+//       module: "horizontal",
+//       version: 1,
+//     },
+//   });
+
+//   // Repart d'une base propre pour ces deux fiches (cascade sur items/segments).
+//   await prisma.formSection.deleteMany({ where: { formTypeId: formType.id } });
+//   await prisma.formSegment.deleteMany({ where: { formTypeId: formType.id } });
+
+//   const segmentsByLabel = new Map<string, string>();
+//   for (const [i, label] of opts.segments.entries()) {
+//     const seg = await prisma.formSegment.create({
+//       data: { formTypeId: formType.id, label, sortOrder: i },
+//     });
+//     segmentsByLabel.set(label, seg.id);
+//   }
+
+//   for (const [si, section] of opts.sections.entries()) {
+//     const sec = await prisma.formSection.create({
+//       data: { formTypeId: formType.id, label: section.label, sortOrder: si },
+//     });
+//     for (const [ii, label] of section.items.entries()) {
+//       await prisma.formItem.create({
+//         data: { sectionId: sec.id, label, sortOrder: ii },
+//       });
+//     }
+//   }
+
+//   return { formType, segmentsByLabel };
+// }
+
 async function rebuildFormType(opts: {
   code: string;
   name: string;
@@ -95,8 +138,16 @@ async function rebuildFormType(opts: {
   sections: { label: string; items: string[] }[];
 }) {
   const formType = await prisma.formType.upsert({
-    where: { code_version: { code: opts.code, version: 1 } },
-    update: { name: opts.name, module: "horizontal" },
+    where: {
+      code_version: {
+        code: opts.code,
+        version: 1,
+      },
+    },
+    update: {
+      name: opts.name,
+      module: "horizontal",
+    },
     create: {
       code: opts.code,
       name: opts.name,
@@ -105,30 +156,86 @@ async function rebuildFormType(opts: {
     },
   });
 
-  // Repart d'une base propre pour ces deux fiches (cascade sur items/segments).
-  await prisma.formSection.deleteMany({ where: { formTypeId: formType.id } });
-  await prisma.formSegment.deleteMany({ where: { formTypeId: formType.id } });
+  // Repart d'une base propre pour cette fiche.
+  //
+  // Les InspectionValue doivent être supprimées en premier,
+  // car elles référencent les FormItem et les FormSegment
+  // sans onDelete: Cascade.
+  //
+  // Les InspectionPhoto et CorrectiveAction associés seront
+  // supprimés automatiquement grâce à leur relation Cascade.
+  await prisma.inspectionValue.deleteMany({
+    where: {
+      OR: [
+        {
+          item: {
+            section: {
+              formTypeId: formType.id,
+            },
+          },
+        },
+        {
+          segment: {
+            formTypeId: formType.id,
+          },
+        },
+      ],
+    },
+  });
+
+  // Les FormItemSegmentExclusion et FormItem associés
+  // seront supprimés en cascade avec les sections.
+  await prisma.formSection.deleteMany({
+    where: {
+      formTypeId: formType.id,
+    },
+  });
+
+  // Aucun InspectionValue ne référence maintenant les segments.
+  await prisma.formSegment.deleteMany({
+    where: {
+      formTypeId: formType.id,
+    },
+  });
 
   const segmentsByLabel = new Map<string, string>();
+
   for (const [i, label] of opts.segments.entries()) {
     const seg = await prisma.formSegment.create({
-      data: { formTypeId: formType.id, label, sortOrder: i },
+      data: {
+        formTypeId: formType.id,
+        label,
+        sortOrder: i,
+      },
     });
+
     segmentsByLabel.set(label, seg.id);
   }
 
   for (const [si, section] of opts.sections.entries()) {
     const sec = await prisma.formSection.create({
-      data: { formTypeId: formType.id, label: section.label, sortOrder: si },
+      data: {
+        formTypeId: formType.id,
+        label: section.label,
+        sortOrder: si,
+      },
     });
+
     for (const [ii, label] of section.items.entries()) {
       await prisma.formItem.create({
-        data: { sectionId: sec.id, label, sortOrder: ii },
+        data: {
+          sectionId: sec.id,
+          label,
+          sortOrder: ii,
+        },
       });
     }
   }
 
-  return { formType, segmentsByLabel };
+  return {
+    formType,
+    segmentsByLabel,
+  };
 }
 
 async function main() {

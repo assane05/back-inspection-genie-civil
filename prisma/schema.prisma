@@ -92,6 +92,7 @@ model User {
 
   userGroups          UserGroup[]
   assignmentsCreated  Assignment[]  @relation("AssignmentCreatedBy")
+  assignmentsAssignedTo Assignment[] @relation("AssignmentAssignedTo")
   inspectionsSubmitted Inspection[] @relation("InspectionSubmittedBy")
   inspectionsVerified  Inspection[] @relation("InspectionVerifiedBy")
   
@@ -200,6 +201,8 @@ model Assignment {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   formTypeId       String   @map("form_type_id") @db.Uuid
   groupId          String   @map("group_id") @db.Uuid
+  
+  assignedToId     String?  @map("assigned_to") @db.Uuid
   zoneNotes        String?  @map("zone_notes") // "MT; VERS; EFS"
   year             Int
   bimonthlyPeriod  Int      @map("bimonthly_period") @db.SmallInt
@@ -210,10 +213,12 @@ model Assignment {
 
   formType    FormType     @relation(fields: [formTypeId], references: [id])
   group       Group        @relation(fields: [groupId], references: [id])
+  assignedTo  User?        @relation("AssignmentAssignedTo", fields: [assignedToId], references: [id])
   createdBy   User?        @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
   inspections Inspection[]
 
   @@index([groupId], map: "idx_assignments_group")
+  @@index([assignedToId], map: "idx_assignments_assigned_to")
   @@index([year, bimonthlyPeriod, weekNumber], map: "idx_assignments_period")
   @@map("assignments")
 }
@@ -225,12 +230,12 @@ model Inspection {
   assignmentId   String?           @map("assignment_id") @db.Uuid
   formTypeId     String            @map("form_type_id") @db.Uuid // fige la version du modèle
   groupId        String            @map("group_id") @db.Uuid
-  // champs bâtiment
+  
   ouvrage        String? // "Brigade Cynophyle"
   sector         SectorType?
   acceptance     AcceptanceType?
   headerComment  String?           @map("header_comment")
-  // cycle de vie
+  
   status         InspectionStatus  @default(non_soumis)
   submittedById  String?           @map("submitted_by") @db.Uuid
   submittedAt    DateTime?         @map("submitted_at")
@@ -240,6 +245,7 @@ model Inspection {
   dueDate        DateTime?         @map("due_date") @db.Date
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
+  rejectionReason String?          @map("rejection_reason")
 
   assignment Assignment? @relation(fields: [assignmentId], references: [id])
   formType   FormType    @relation(fields: [formTypeId], references: [id])
