@@ -159,30 +159,70 @@ inspectionsRouter.post(
  * endpoints de mutation/schéma, mais nécessaire au frontend pour afficher
  * l'état déjà saisi lors d'une reprise de brouillon). Aucun effet de bord.
  */
+
 // inspectionsRouter.get("/:id", async (req, res) => {
 //   const inspection = await loadInspectionOrThrow(req.params.id);
+
 //   assertGroupAccess(req.user!, inspection.groupId);
 
-//   const [values, submittedBy] = await Promise.all([
+//   const [values, submittedBy, verifiedBy] = await Promise.all([
 //     prisma.inspectionValue.findMany({
 //       where: { inspectionId: inspection.id },
-//       include: { photos: true, correctiveActions: true },
+//       include: {
+//         photos: true,
+//         correctiveActions: true,
+//       },
 //     }),
+
 //     inspection.submittedById
 //       ? prisma.user.findUnique({
 //           where: { id: inspection.submittedById },
-//           select: { displayName: true },
+//           select: {
+//             id: true,
+//             displayName: true,
+//           },
+//         })
+//       : null,
+
+//     inspection.verifiedById
+//       ? prisma.user.findUnique({
+//           where: { id: inspection.verifiedById },
+//           select: {
+//             id: true,
+//             displayName: true,
+//           },
 //         })
 //       : null,
 //   ]);
 
-//   res.json({ ...inspection, values, submittedBy });
+//   res.json({
+//     ...inspection,
+//     values,
+//     submittedBy,
+//     verifiedBy,
+//   });
 // });
 
+// ========= GET /:id =========
+/**
+ * Lecture détaillée d'une inspection.
+ *
+ * Administrateur / approbateur :
+ *   - peuvent consulter les fiches de tous les groupes.
+ *
+ * Superviseur :
+ *   - peut uniquement consulter les fiches de son groupe.
+ */
 inspectionsRouter.get("/:id", async (req, res) => {
   const inspection = await loadInspectionOrThrow(req.params.id);
 
-  assertGroupAccess(req.user!, inspection.groupId);
+  // Les administrateurs et approbateurs peuvent consulter
+  // les fiches de tous les groupes.
+  //
+  // Le superviseur reste limité à son propre groupe.
+  if (req.user!.role !== "administrateur" && req.user!.role !== "approbateur") {
+    assertGroupAccess(req.user!, inspection.groupId);
+  }
 
   const [values, submittedBy, verifiedBy] = await Promise.all([
     prisma.inspectionValue.findMany({
@@ -219,6 +259,7 @@ inspectionsRouter.get("/:id", async (req, res) => {
     values,
     submittedBy,
     verifiedBy,
+    rejectionReason: inspection.rejectionReason ?? null,
   });
 });
 

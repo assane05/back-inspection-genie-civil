@@ -64,8 +64,6 @@ formTypesRouter.get("/:id/schema", async (req, res) => {
         id: i.id,
         label: i.label,
         sortOrder: i.sortOrder,
-        // Segments non applicables pour cet item (cellules grisées sur la
-        // fiche réelle, ex. FIB Runway) — le front ne doit pas les proposer.
         excludedSegmentIds: i.excludedSegments.map((e) => e.segmentId),
       })),
     })),

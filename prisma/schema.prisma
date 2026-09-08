@@ -7,7 +7,226 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ========= ENUMS =========
+model Group {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
+  assignments Assignment[]
+  inspections Inspection[]
+  userGroups  UserGroup[]
+
+  @@map("groups")
+}
+
+model User {
+  id                    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username              String       @unique
+  displayName           String       @map("display_name")
+  email                 String?
+  passwordHash          String       @map("password_hash")
+  role                  UserRole     @default(superviseur)
+  isActive              Boolean      @default(true) @map("is_active")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  assignmentsAssignedTo Assignment[] @relation("AssignmentAssignedTo")
+  assignmentsCreated    Assignment[] @relation("AssignmentCreatedBy")
+  inspectionsSubmitted  Inspection[] @relation("InspectionSubmittedBy")
+  inspectionsVerified   Inspection[] @relation("InspectionVerifiedBy")
+  sessions              Session[]
+  userGroups            UserGroup[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_sessions_user")
+  @@index([expiresAt], map: "idx_sessions_expires")
+  @@map("sessions")
+}
+
+model UserGroup {
+  userId  String @map("user_id") @db.Uuid
+  groupId String @map("group_id") @db.Uuid
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@map("user_groups")
+}
+
+model FormType {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String
+  name        String
+  module      FormModule
+  version     Int           @default(1)
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  assignments Assignment[]
+  sections    FormSection[]
+  segments    FormSegment[]
+  inspections Inspection[]
+
+  @@unique([code, version])
+  @@map("form_types")
+}
+
+model FormSection {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formTypeId String     @map("form_type_id") @db.Uuid
+  code       String?
+  label      String
+  sortOrder  Int        @default(0) @map("sort_order")
+  items      FormItem[]
+  formType   FormType   @relation(fields: [formTypeId], references: [id], onDelete: Cascade)
+
+  @@map("form_sections")
+}
+
+model FormItem {
+  id               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId        String                     @map("section_id") @db.Uuid
+  label            String
+  sortOrder        Int                        @default(0) @map("sort_order")
+  excludedSegments FormItemSegmentExclusion[]
+  section          FormSection                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  inspectionValues InspectionValue[]
+
+  @@map("form_items")
+}
+
+model FormSegment {
+  id               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formTypeId       String                     @map("form_type_id") @db.Uuid
+  label            String
+  sortOrder        Int                        @default(0) @map("sort_order")
+  excludedItems    FormItemSegmentExclusion[]
+  formType         FormType                   @relation(fields: [formTypeId], references: [id], onDelete: Cascade)
+  inspectionValues InspectionValue[]
+
+  @@map("form_segments")
+}
+
+model FormItemSegmentExclusion {
+  itemId    String      @map("item_id") @db.Uuid
+  segmentId String      @map("segment_id") @db.Uuid
+  item      FormItem    @relation(fields: [itemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  segment   FormSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([itemId, segmentId])
+  @@map("form_item_segment_exclusions")
+}
+
+model Assignment {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formTypeId      String       @map("form_type_id") @db.Uuid
+  groupId         String       @map("group_id") @db.Uuid
+  zoneNotes       String?      @map("zone_notes")
+  year            Int
+  bimonthlyPeriod Int          @map("bimonthly_period") @db.SmallInt
+  weekNumber      Int?         @map("week_number") @db.SmallInt
+  dueDate         DateTime?    @map("due_date") @db.Date
+  createdById     String?      @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at")
+  assignedToId    String?      @map("assigned_to") @db.Uuid
+  assignedTo      User?        @relation("AssignmentAssignedTo", fields: [assignedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy       User?        @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+  formType        FormType     @relation(fields: [formTypeId], references: [id])
+  group           Group        @relation(fields: [groupId], references: [id])
+  inspections     Inspection[]
+
+  @@index([groupId], map: "idx_assignments_group")
+  @@index([assignedToId], map: "idx_assignments_assigned_to")
+  @@index([year, bimonthlyPeriod, weekNumber], map: "idx_assignments_period")
+  @@map("assignments")
+}
+
+model Inspection {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId    String?           @map("assignment_id") @db.Uuid
+  formTypeId      String            @map("form_type_id") @db.Uuid
+  groupId         String            @map("group_id") @db.Uuid
+  ouvrage         String?
+  sector          SectorType?
+  acceptance      AcceptanceType?
+  headerComment   String?           @map("header_comment")
+  status          InspectionStatus  @default(non_soumis)
+  submittedById   String?           @map("submitted_by") @db.Uuid
+  submittedAt     DateTime?         @map("submitted_at")
+  verifiedById    String?           @map("verified_by") @db.Uuid
+  verifiedAt      DateTime?         @map("verified_at")
+  weekNumber      Int?              @map("week_number") @db.SmallInt
+  dueDate         DateTime?         @map("due_date") @db.Date
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  rejectionReason String?           @map("rejection_reason")
+  values          InspectionValue[]
+  assignment      Assignment?       @relation(fields: [assignmentId], references: [id])
+  formType        FormType          @relation(fields: [formTypeId], references: [id])
+  group           Group             @relation(fields: [groupId], references: [id])
+  submittedBy     User?             @relation("InspectionSubmittedBy", fields: [submittedById], references: [id])
+  verifiedBy      User?             @relation("InspectionVerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([status], map: "idx_inspections_status")
+  @@index([groupId], map: "idx_inspections_group")
+  @@map("inspections")
+}
+
+model InspectionValue {
+  id                        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionId              String             @map("inspection_id") @db.Uuid
+  itemId                    String             @map("item_id") @db.Uuid
+  segmentId                 String?            @map("segment_id") @db.Uuid
+  state                     FindingState       @default(non_inspecte)
+  severity                  SeverityLevel?
+  revealQualitative         String?            @map("reveal_qualitative")
+  locationAction            String?            @map("location_action")
+  comment                   String?
+  updatedAt                 DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  measurementSurfaceM2      Decimal?           @map("measurement_surface_m2") @db.Decimal(10, 2)
+  measurementLengthM        Decimal?           @map("measurement_length_m") @db.Decimal(10, 2)
+  measurementHeightOrDepthM Decimal?           @map("measurement_height_or_depth_m") @db.Decimal(10, 2)
+  correctiveActions         CorrectiveAction[]
+  photos                    InspectionPhoto[]
+  inspection                Inspection         @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  item                      FormItem           @relation(fields: [itemId], references: [id])
+  segment                   FormSegment?       @relation(fields: [segmentId], references: [id])
+
+  @@unique([inspectionId, itemId, segmentId])
+  @@index([inspectionId], map: "idx_values_inspection")
+  @@map("inspection_values")
+}
+
+model InspectionPhoto {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionValueId String          @map("inspection_value_id") @db.Uuid
+  url               String
+  thumbUrl          String?         @map("thumb_url")
+  storageKey        String?         @map("storage_key")
+  clientRef         String?         @map("client_ref")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  inspectionValue   InspectionValue @relation(fields: [inspectionValueId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionValueId], map: "idx_photos_value")
+  @@map("inspection_photos")
+  @@unique([inspectionValueId, clientRef])
+}
+
+model CorrectiveAction {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionValueId String?          @map("inspection_value_id") @db.Uuid
+  reference         String?
+  description       String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  inspectionValue   InspectionValue? @relation(fields: [inspectionValueId], references: [id], onDelete: Cascade)
+
+  @@map("corrective_actions")
+}
 
 enum UserRole {
   superviseur
@@ -27,8 +246,8 @@ enum FormModule {
 enum InspectionStatus {
   non_soumis
   soumis
-  verifie // V2
-  rejete // V2
+  verifie
+  rejete
 
   @@map("inspection_status")
 }
@@ -64,254 +283,4 @@ enum AcceptanceType {
   non_conforme
 
   @@map("acceptance_type")
-}
-
-// ========= UTILISATEURS & GROUPES =========
-
-model Group {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String   @unique // "Supervisor 1".."Supervisor 5"
-  createdAt DateTime @default(now()) @map("created_at")
-
-  userGroups  UserGroup[]
-  assignments Assignment[]
-  inspections Inspection[]
-
-  @@map("groups")
-}
-
-model User {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  username     String   @unique
-  displayName  String   @map("display_name") // ex. "Emilie Mbengue"
-  email        String?
-  passwordHash String   @map("password_hash") // jamais de secret en clair (cf. audit)
-  role         UserRole @default(superviseur)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  userGroups          UserGroup[]
-  assignmentsCreated  Assignment[]  @relation("AssignmentCreatedBy")
-  assignmentsAssignedTo Assignment[] @relation("AssignmentAssignedTo")
-  inspectionsSubmitted Inspection[] @relation("InspectionSubmittedBy")
-  inspectionsVerified  Inspection[] @relation("InspectionVerifiedBy")
-  
-  sessions            Session[]
-  
-  @@map("users")
-}
-
-model Session {
-  id        String   @id
-  userId    String   @map("user_id") @db.Uuid
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId], map: "idx_sessions_user")
-  @@index([expiresAt], map: "idx_sessions_expires")
-  @@map("sessions")
-}
-
-model UserGroup {
-  userId  String @map("user_id") @db.Uuid
-  groupId String @map("group_id") @db.Uuid
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@id([userId, groupId])
-  @@map("user_groups")
-}
-
-// ========= DICTIONNAIRE (modèles de formulaires) =========
-
-model FormType {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code      String // "runway", "batiment"...
-  name      String // "Fiche d'inspection Runway"
-  module    FormModule
-  version   Int        @default(1) // versionnement du modèle
-  isActive  Boolean    @default(true) @map("is_active")
-  createdAt DateTime   @default(now()) @map("created_at")
-
-  sections    FormSection[]
-  segments    FormSegment[]
-  assignments Assignment[]
-  inspections Inspection[]
-
-  @@unique([code, version])
-  @@map("form_types")
-}
-
-model FormSection {
-  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  formTypeId String  @map("form_type_id") @db.Uuid
-  code       String? // 'A'..'H' ou NULL
-  label      String // "Famille des Fissures" / "A - Murs / Cloisons"
-  sortOrder  Int     @default(0) @map("sort_order")
-
-  formType FormType   @relation(fields: [formTypeId], references: [id], onDelete: Cascade)
-  items    FormItem[]
-
-  @@map("form_sections")
-}
-
-model FormItem {
-  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sectionId String @map("section_id") @db.Uuid
-  label     String // "Nid de Poule" / "Etat des Portes"
-  sortOrder Int    @default(0) @map("sort_order")
-
-  section           FormSection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  inspectionValues  InspectionValue[]
-  excludedSegments  FormItemSegmentExclusion[]
-  
-  @@map("form_items")
-}
-
-model FormSegment {
-  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  formTypeId String @map("form_type_id") @db.Uuid
-  label      String 
-  sortOrder  Int    @default(0) @map("sort_order")
-
-  formType         FormType           @relation(fields: [formTypeId], references: [id], onDelete: Cascade)
-  inspectionValues InspectionValue[]
-  excludedItems    FormItemSegmentExclusion[]
-
-  @@map("form_segments")
-}
-
-model FormItemSegmentExclusion {
-  itemId    String @map("item_id") @db.Uuid
-  segmentId String @map("segment_id") @db.Uuid
-
-  item    FormItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  segment FormSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-
-  @@id([itemId, segmentId])
-  @@map("form_item_segment_exclusions")
-}
-
-// ========= PLANIFICATION =========
-
-model Assignment {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  formTypeId       String   @map("form_type_id") @db.Uuid
-  groupId          String   @map("group_id") @db.Uuid
-  
-  assignedToId     String?  @map("assigned_to") @db.Uuid
-  zoneNotes        String?  @map("zone_notes") // "MT; VERS; EFS"
-  year             Int
-  bimonthlyPeriod  Int      @map("bimonthly_period") @db.SmallInt
-  weekNumber       Int?     @map("week_number") @db.SmallInt
-  dueDate          DateTime? @map("due_date") @db.Date
-  createdById      String?  @map("created_by") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  formType    FormType     @relation(fields: [formTypeId], references: [id])
-  group       Group        @relation(fields: [groupId], references: [id])
-  assignedTo  User?        @relation("AssignmentAssignedTo", fields: [assignedToId], references: [id])
-  createdBy   User?        @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
-  inspections Inspection[]
-
-  @@index([groupId], map: "idx_assignments_group")
-  @@index([assignedToId], map: "idx_assignments_assigned_to")
-  @@index([year, bimonthlyPeriod, weekNumber], map: "idx_assignments_period")
-  @@map("assignments")
-}
-
-// ========= FICHES REMPLIES =========
-
-model Inspection {
-  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  assignmentId   String?           @map("assignment_id") @db.Uuid
-  formTypeId     String            @map("form_type_id") @db.Uuid // fige la version du modèle
-  groupId        String            @map("group_id") @db.Uuid
-  
-  ouvrage        String? // "Brigade Cynophyle"
-  sector         SectorType?
-  acceptance     AcceptanceType?
-  headerComment  String?           @map("header_comment")
-  
-  status         InspectionStatus  @default(non_soumis)
-  submittedById  String?           @map("submitted_by") @db.Uuid
-  submittedAt    DateTime?         @map("submitted_at")
-  verifiedById   String?           @map("verified_by") @db.Uuid // V2
-  verifiedAt     DateTime?         @map("verified_at") // V2
-  weekNumber     Int?              @map("week_number") @db.SmallInt
-  dueDate        DateTime?         @map("due_date") @db.Date
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  rejectionReason String?          @map("rejection_reason")
-
-  assignment Assignment? @relation(fields: [assignmentId], references: [id])
-  formType   FormType    @relation(fields: [formTypeId], references: [id])
-  group      Group       @relation(fields: [groupId], references: [id])
-  submittedBy User?      @relation("InspectionSubmittedBy", fields: [submittedById], references: [id])
-  verifiedBy  User?      @relation("InspectionVerifiedBy", fields: [verifiedById], references: [id])
-
-  values InspectionValue[]
-
-  @@index([status], map: "idx_inspections_status")
-  @@index([groupId], map: "idx_inspections_group")
-  @@map("inspections")
-}
-
-model InspectionValue {
-  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  inspectionId      String         @map("inspection_id") @db.Uuid
-  itemId            String         @map("item_id") @db.Uuid
-  segmentId         String?        @map("segment_id") @db.Uuid 
-  state             FindingState   @default(non_inspecte)
-  severity          SeverityLevel?
-  revealQualitative String?        @map("reveal_qualitative") 
-  locationAction    String?        @map("location_action") 
-  comment           String?
-  updatedAt         DateTime       @default(now()) @map("updated_at") 
-
-  inspection Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  item       FormItem     @relation(fields: [itemId], references: [id])
-  segment    FormSegment? @relation(fields: [segmentId], references: [id])
-
-  measurementSurfaceM2      Decimal? @map("measurement_surface_m2") @db.Decimal(10, 2)
-  measurementLengthM        Decimal? @map("measurement_length_m") @db.Decimal(10, 2)
-  measurementHeightOrDepthM Decimal? @map("measurement_height_or_depth_m") @db.Decimal(10, 2)
-
-  photos             InspectionPhoto[]
-  correctiveActions  CorrectiveAction[]
-
-  @@unique([inspectionId, itemId, segmentId])
-  @@index([inspectionId], map: "idx_values_inspection")
-  @@map("inspection_values")
-}
-
-model InspectionPhoto {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  inspectionValueId  String   @map("inspection_value_id") @db.Uuid
-  url                String 
-  thumbUrl           String?  @map("thumb_url")
-  storageKey         String   @map("storage_key") 
-  clientRef          String?  @map("client_ref") 
-  createdAt          DateTime @default(now()) @map("created_at")
-
-  inspectionValue InspectionValue @relation(fields: [inspectionValueId], references: [id], onDelete: Cascade)
-
-  @@unique([inspectionValueId, clientRef], map: "idx_photos_client_ref_unique")
-  @@index([inspectionValueId], map: "idx_photos_value")
-  @@map("inspection_photos")
-}
-
-model CorrectiveAction {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  inspectionValueId String?  @map("inspection_value_id") @db.Uuid
-  reference         String?
-  description       String?
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  inspectionValue InspectionValue? @relation(fields: [inspectionValueId], references: [id], onDelete: Cascade)
-
-  @@map("corrective_actions")
 }
