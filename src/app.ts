@@ -11,6 +11,7 @@ import { assignmentsRouter } from "./routes/assignments";
 import { inspectionsRouter } from "./routes/inspections";
 import { usersRouter } from "./routes/users";
 import { catalogRouter } from "./routes/catalog";
+import { dashboardRouter } from "./routes/dashboard";
 // import { tasksRouter } from "./routes/tasks";
 // import { dictionaryRouter } from "./routes/dictionary";
 // import { submissionsRouter } from "./routes/submissions";
@@ -30,6 +31,7 @@ app.use(attachUser);
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);
+app.use("/api/dashboard", dashboardRouter);
 app.use("/api/form-types", formTypesRouter);
 app.use("/api/assignments", assignmentsRouter);
 app.use("/api/inspections", inspectionsRouter);
