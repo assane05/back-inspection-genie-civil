@@ -3,7 +3,9 @@ import {
   DeleteObjectCommand,
   PutObjectCommand,
   S3Client,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
+
 import { env } from "../env";
 
 const MIME_EXT: Record<string, string> = {
@@ -82,5 +84,14 @@ export async function savePhotoFromDataUrl(
 export async function deletePhoto(storageKey: string): Promise<void> {
   await s3().send(
     new DeleteObjectCommand({ Bucket: env.s3Bucket, Key: storageKey }),
+  );
+}
+
+export async function getPhotoObject(storageKey: string) {
+  return s3().send(
+    new GetObjectCommand({
+      Bucket: env.s3Bucket,
+      Key: storageKey,
+    }),
   );
 }

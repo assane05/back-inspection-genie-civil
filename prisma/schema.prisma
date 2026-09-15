@@ -14,6 +14,7 @@ model Group {
   assignments Assignment[]
   inspections Inspection[]
   userGroups  UserGroup[]
+  evaluations Evaluation[]
 
   @@map("groups")
 }
@@ -31,8 +32,12 @@ model User {
   assignmentsCreated    Assignment[] @relation("AssignmentCreatedBy")
   inspectionsSubmitted  Inspection[] @relation("InspectionSubmittedBy")
   inspectionsVerified   Inspection[] @relation("InspectionVerifiedBy")
+ 
   sessions              Session[]
   userGroups            UserGroup[]
+
+  evaluationsReceived   Evaluation[] @relation("SupervisorEvaluations")
+  evaluationsCreated    Evaluation[] @relation("EvaluationCreatedBy")
 
   @@map("users")
 }
@@ -215,6 +220,44 @@ model InspectionPhoto {
   @@index([inspectionValueId], map: "idx_photos_value")
   @@map("inspection_photos")
   @@unique([inspectionValueId, clientRef])
+}
+
+model Evaluation {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  supervisorId       String   @map("supervisor_id") @db.Uuid
+  createdById        String   @map("created_by") @db.Uuid
+
+  year               Int
+  bimonthlyPeriod    Int      @map("bimonthly_period")
+  groupId            String?  @map("group_id") @db.Uuid
+
+  // Notes sur 5
+  respectDelais        Int?   @map("respect_delais")
+  qualiteInspections   Int?   @map("qualite_inspections")
+  qualiteObservations  Int?   @map("qualite_observations")
+  suiviAnomalies       Int?   @map("suivi_anomalies")
+  respectProcedures   Int?   @map("respect_procedures")
+  reactivite          Int?
+  autonomie           Int?
+
+  // Appréciation qualitative
+  strengths            String?
+  weaknesses           String?
+  recommendations     String?
+  comment             String?
+
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  supervisor           User     @relation("SupervisorEvaluations", fields: [supervisorId], references: [id])
+  createdBy            User     @relation("EvaluationCreatedBy", fields: [createdById], references: [id])
+  group                Group?   @relation(fields: [groupId], references: [id])
+
+  @@index([supervisorId])
+  @@index([year, bimonthlyPeriod])
+  @@index([groupId])
+  @@map("evaluations")
 }
 
 model CorrectiveAction {

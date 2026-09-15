@@ -154,54 +154,139 @@ inspectionsRouter.post(
   },
 );
 
+// ========= GET /gallery =========
 /**
- * Lecture pure — ajoutée en complément d'Epic 3 (non listée dans les 5
- * endpoints de mutation/schéma, mais nécessaire au frontend pour afficher
- * l'état déjà saisi lors d'une reprise de brouillon). Aucun effet de bord.
+ * Galerie des photos d'inspection.
+ *
+ * Administrateur / approbateur :
+ *   - toutes les photos de toutes les inspections.
+ *
+ * Superviseur :
+ *   - uniquement les photos des inspections qu'il a soumises.
  */
+inspectionsRouter.get("/gallery", async (req, res) => {
+  const user = req.user!;
 
-// inspectionsRouter.get("/:id", async (req, res) => {
-//   const inspection = await loadInspectionOrThrow(req.params.id);
+  const isGlobalRole =
+    user.role === "administrateur" || user.role === "approbateur";
 
-//   assertGroupAccess(req.user!, inspection.groupId);
+  const inspections = await prisma.inspection.findMany({
+    where: {
+      ...(isGlobalRole
+        ? {}
+        : {
+            submittedById: user.id,
+          }),
 
-//   const [values, submittedBy, verifiedBy] = await Promise.all([
-//     prisma.inspectionValue.findMany({
-//       where: { inspectionId: inspection.id },
-//       include: {
-//         photos: true,
-//         correctiveActions: true,
-//       },
-//     }),
+      // On ne veut pas afficher les brouillons
+      status: {
+        not: "non_soumis",
+      },
+    },
 
-//     inspection.submittedById
-//       ? prisma.user.findUnique({
-//           where: { id: inspection.submittedById },
-//           select: {
-//             id: true,
-//             displayName: true,
-//           },
-//         })
-//       : null,
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      createdAt: true,
+      ouvrage: true,
+      group: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      formType: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      submittedBy: {
+        select: {
+          id: true,
+          displayName: true,
+        },
+      },
+      values: {
+        where: {
+          photos: {
+            some: {},
+          },
+        },
+        select: {
+          id: true,
+          item: {
+            select: {
+              id: true,
+              label: true,
+            },
+          },
+          segment: {
+            select: {
+              id: true,
+              label: true,
+            },
+          },
+          photos: {
+            select: {
+              id: true,
+              url: true,
+              thumbUrl: true,
+              storageKey: true,
+              clientRef: true,
+              createdAt: true,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
+        },
+      },
+    },
 
-//     inspection.verifiedById
-//       ? prisma.user.findUnique({
-//           where: { id: inspection.verifiedById },
-//           select: {
-//             id: true,
-//             displayName: true,
-//           },
-//         })
-//       : null,
-//   ]);
+    orderBy: [
+      {
+        submittedAt: "desc",
+      },
+      {
+        createdAt: "desc",
+      },
+    ],
+  });
 
-//   res.json({
-//     ...inspection,
-//     values,
-//     submittedBy,
-//     verifiedBy,
-//   });
-// });
+  const photos = inspections.flatMap((inspection) =>
+    inspection.values.flatMap((value) =>
+      value.photos.map((photo) => ({
+        id: photo.id,
+        url: photo.url,
+        thumbUrl: photo.thumbUrl,
+        storageKey: photo.storageKey,
+        clientRef: photo.clientRef,
+        createdAt: photo.createdAt,
+
+        inspectionId: inspection.id,
+        inspectionStatus: inspection.status,
+        submittedAt: inspection.submittedAt,
+
+        formType: inspection.formType,
+        group: inspection.group,
+        submittedBy: inspection.submittedBy,
+
+        item: value.item,
+        segment: value.segment,
+
+        ouvrage: inspection.ouvrage,
+      })),
+    ),
+  );
+
+  return res.json({
+    photos,
+    total: photos.length,
+  });
+});
 
 // ========= GET /:id =========
 /**
@@ -706,17 +791,16 @@ inspectionsRouter.delete(
     }
 
     await prisma.inspectionPhoto.delete({ where: { id: photo.id } });
-    try {
-      await deletePhoto(photo.storageKey);
-    } catch (err) {
-      // La ligne DB est supprimée (source de vérité pour l'app) ; un objet
-      // orphelin dans le bucket est un coût de stockage, pas une incohérence
-      // fonctionnelle — on log plutôt que de faire échouer la requête.
-      console.error(
-        "Échec de suppression de l'objet S3",
-        photo.storageKey,
-        err,
-      );
+    if (photo.storageKey) {
+      try {
+        await deletePhoto(photo.storageKey);
+      } catch (err) {
+        console.error(
+          "Échec de suppression de l'objet S3",
+          photo.storageKey,
+          err,
+        );
+      }
     }
     res.status(204).end();
   },
